@@ -1,0 +1,7 @@
+'use client';
+import { Check, ArrowRight } from 'lucide-react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
+export function Button({ children, variant = 'primary', className = '', type = 'button', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'text' | 'danger'; children: ReactNode }) { return <button type={type} className={`button ${variant} ${className}`} {...props}>{children}</button>; }
+export function Choice({ selected, children, onClick, className = '' }: { selected: boolean; children: ReactNode; onClick: () => void; className?: string }) { return <button type="button" aria-pressed={selected} className={`choice ${selected ? 'selected' : ''} ${className}`} onClick={onClick}><span className="choice-content">{children}</span><span className="choice-check" aria-hidden="true">{selected && <Check size={16} />}</span></button>; }
+export function Brand({ name = 'Estudio Norte', small = false }: { name?: string; small?: boolean }) { return <span className={`brand-lockup ${small ? 'small' : ''}`}><span className="brand-mark" aria-hidden="true">{name.split(' ').map(n => n[0]).slice(0, 2).join('')}</span><span>{name}</span></span>; }
+export function Empty({ title, children, action, onAction }: { title: string; children: ReactNode; action: string; onAction: () => void }) { return <div className="empty"><h3>{title}</h3><p>{children}</p><Button variant="secondary" onClick={onAction}>{action}<ArrowRight size={16} /></Button></div>; }
