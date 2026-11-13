@@ -13,7 +13,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:prototype": "node tests/e2e/prototype.mjs"
+    "test:db": "vitest run tests/integration/schema.test.ts",
+    "test:prototype": "node tests/e2e/prototype.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
+    "db:migrate": "drizzle-kit migrate",
+    "db:ping": "node scripts/check-db.mjs"
   },
   "dependencies": {
     "@fontsource/manrope": "^5.2.0",

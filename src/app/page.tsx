@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { ExternalLink, FlaskConical, X, CheckCircle2 } from 'lucide-react';
-import { Booking, Identity, initialBookings, initialIdentity } from '@/modules/prototype';
+import { Booking, Identity, initialBookings, initialIdentity, locations } from '@/modules/prototype';
 import { PublicSite } from '@/components/public-site';
 import { OwnerPanel } from '@/components/owner-panel';
 
@@ -17,7 +17,7 @@ export default function Page() {
   const [emptyAgenda, setEmptyAgenda] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   useEffect(() => {
-    try { const raw = localStorage.getItem('turnow-demo-v1'); if (raw) { const saved = JSON.parse(raw); setIdentity(saved.identity); setBookings(saved.bookings); } } catch { /* Optional local storage. */ }
+    try { const raw = localStorage.getItem('turnow-demo-v1'); if (raw) { const saved = JSON.parse(raw); setIdentity(saved.identity); setBookings(saved.bookings.map((booking: Booking) => ({ ...booking, location: locations.some(place => place.id === booking.location) ? booking.location : 'urquiza' }))); } } catch { /* Optional local storage. Existing bookings without a location belong to the original demo site. */ }
     setAdmin(location.hash === '#panel'); setReady(true);
   }, []);
   useEffect(() => { if (ready) { try { localStorage.setItem('turnow-demo-v1', JSON.stringify({ identity, bookings })); } catch { /* State remains available in memory. */ } } }, [ready, identity, bookings]);

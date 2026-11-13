@@ -86,9 +86,11 @@ La visión incluye reservas, adaptación por rubro, edición del turnero, avisos
 ### Incluido
 
 - Múltiples negocios con datos y permisos aislados.
-- Una sucursal y una cuenta de dueño por negocio.
+- Varias sedes por negocio y una cuenta de dueño por negocio.
 - Página pública con enlace propio.
-- Servicios, profesionales y horarios configurables.
+- Catálogo compartido de servicios, precios y políticas para todas las sedes.
+- Profesionales asignados a una o más sedes, con horarios propios en cada sede.
+- Horarios del local, excepciones y bloqueos configurables por sede.
 - Disponibilidad por profesional y disponibilidad combinada.
 - Reserva automática sin registro del cliente.
 - Cancelación mediante código privado.
@@ -119,7 +121,7 @@ El canal inicial de mensajería y la posibilidad de adelantar estas funciones al
 
 - Canchas, clases grupales y reservas con cupos.
 - Gestión de sillas, cabinas o equipos como recursos compartidos.
-- Varias sucursales.
+- Precios, duraciones o políticas diferentes por sede.
 - Cuentas y permisos individuales para empleados.
 - Varios servicios en una misma reserva.
 - Precios o duraciones diferentes por profesional para un mismo servicio.
@@ -142,8 +144,8 @@ Contenido configurable:
 - Nombre del negocio.
 - Logo y color principal.
 - Descripción breve.
-- Dirección y enlace a un mapa.
-- Contacto y enlace a WhatsApp, si corresponde.
+- Selector/listado de sedes con dirección y enlace a un mapa por sede.
+- Contacto general y enlace a WhatsApp, si corresponde.
 - Enlaces a redes sociales.
 - Horarios generales del local, si se decide mostrarlos.
 - Indicaciones útiles para asistir.
@@ -153,7 +155,7 @@ Acciones principales:
 1. **Reservar turno**: acción visualmente predominante.
 2. **Cancelar turno**: acceso visible al ingreso del código de reserva.
 
-Los campos opcionales vacíos no deben generar secciones incompletas. Los horarios generales del local son informativos y delimitan la operación, pero no representan por sí solos la disponibilidad de cada profesional.
+Los campos opcionales vacíos no deben generar secciones incompletas. El cliente elige la sede antes de consultar horarios; cada sede tiene horarios generales propios que delimitan la operación, pero no representan por sí solos la disponibilidad de cada profesional. Servicios, precios y políticas se comparten en todas las sedes.
 
 ### Herramienta de edición del turnero
 
@@ -165,7 +167,8 @@ El dueño debe poder modificar la presentación y las reglas desde su panel, sin
 | Información | Descripción, contacto, ubicación y redes | MVP |
 | Oferta | Servicios, duración, precios y visibilidad | MVP |
 | Equipo | Profesionales y servicios que ofrecen | MVP |
-| Agenda | Días, horarios, descansos, excepciones y márgenes | MVP |
+| Sedes | Dirección, contacto y estado de cada sede | MVP |
+| Agenda | Días y horarios del local y de cada profesional por sede, descansos y excepciones | MVP |
 | Reserva | Anticipación, horizonte, elección de profesional y cancelación | MVP |
 | Presentación | Mostrar u ocultar información opcional y previsualizar | MVP |
 | Formulario | Campos adicionales, etiquetas y obligatoriedad | Etapa 2 |
@@ -190,14 +193,15 @@ Los componentes concretos, wireframes, tipografía, espaciados y comportamiento 
 ## 5. Flujo de reserva
 
 1. El cliente entra al enlace del negocio y selecciona **Reservar turno**.
-2. Elige un servicio; ve su duración prevista y el precio si el negocio lo publica.
-3. Elige un profesional o **Cualquier profesional disponible**.
-4. Elige un día y un horario disponible.
-5. Completa nombre y teléfono. El email será opcional si se incorpora como canal de confirmación.
-6. Revisa servicio, profesional o modalidad de asignación, fecha, hora, precio visible y política de cancelación.
-7. Confirma la reserva.
-8. El sistema vuelve a validar la disponibilidad y guarda la reserva.
-9. Se muestra la confirmación con el profesional asignado, los datos del turno y un código privado que puede copiar.
+2. Elige una sede; los enlaces directos pueden preseleccionar una sede sin impedir cambiarla.
+3. Elige un servicio del catálogo compartido; ve su duración prevista y el precio si el negocio lo publica.
+4. Elige un profesional habilitado en esa sede o **Cualquier profesional disponible**.
+5. Elige un día y un horario disponible en esa sede.
+6. Completa nombre y teléfono. El email será opcional si se incorpora como canal de confirmación.
+7. Revisa sede, servicio, profesional o modalidad de asignación, fecha, hora, precio visible y política de cancelación.
+8. Confirma la reserva.
+9. El sistema vuelve a validar la disponibilidad y guarda la reserva.
+10. Se muestra la confirmación con sede y profesional asignados, los datos del turno y un código privado que puede copiar.
 
 La reserva queda confirmada únicamente cuando se guarda correctamente. No requiere aprobación del dueño ni depende del envío de un mensaje.
 
@@ -259,6 +263,9 @@ La longitud y el formato del código se resolverán en el diseño técnico, equi
 
 - El local tiene horarios generales de apertura.
 - Cada profesional tiene su propio horario semanal, contenido dentro de la apertura del negocio.
+- El negocio puede tener varias sedes. Cada sede tiene su dirección, zona horaria y horario de apertura; cada profesional tiene horarios independientes por sede.
+- Un profesional solo puede recibir reservas en sedes a las que está asignado. Si trabaja en más de una, no puede tener turnos superpuestos entre sedes.
+- Servicios, precios, duraciones y políticas de reserva/cancelación son compartidos por todas las sedes en el MVP.
 - Se admiten horarios partidos y días sin atención.
 - Un profesional puede atender solo parte del horario de apertura del negocio.
 - Las excepciones por fecha permiten ausencias, feriados y cambios puntuales.
@@ -321,6 +328,7 @@ Las métricas deben indicar período y criterio de conteo. No se muestran ingres
 ### Configuración
 
 - Datos públicos, logo, colores y enlaces.
+- Sedes, direcciones y profesionales asignados a cada una.
 - Servicios, precios, duración y visibilidad del precio.
 - Profesionales y servicios que realiza cada uno.
 - Horarios del negocio y de los profesionales.
@@ -447,11 +455,12 @@ Los objetivos numéricos se fijarán con datos del piloto. El objetivo inicial e
 - Definir límites y tipos de campos adicionales del formulario de reserva.
 - Definir qué ocurre con el enlace público si se suspende un negocio, preservando un canal para gestionar reservas existentes.
 - Acordar precio comercial, soporte incluido y conservación de datos.
+- Definir si un profesional necesita un margen de traslado al trabajar en sedes distintas; el MVP solo impedirá solapamientos horarios.
 
 ## 14. Próximos entregables
 
 1. Validar alcance, etapas y reglas pendientes del producto con potenciales compradores.
-2. Diseñar los flujos públicos y del panel; documentarlos en `DESIGN.md`.
+2. Diseñar selección de sede, flujos públicos y panel; documentarlos en `DESIGN.md`.
 3. Definir arquitectura y garantías de concurrencia en `ARCHITECTURE.md`.
 4. Modelar entidades, relaciones y restricciones en `DATA_MODEL.md`.
 5. Dividir la implementación en hitos verificables, empezando por configuración y primera reserva completa.

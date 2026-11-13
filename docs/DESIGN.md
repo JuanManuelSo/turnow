@@ -178,6 +178,8 @@ Los bloques de servicios o profesionales destacados pueden incorporarse cuando e
 ### Estructura general
 
 - Mantener la identidad visual del negocio durante todo el recorrido.
+- Cuando el negocio tenga varias sedes, pedir elegir sede antes de mostrar disponibilidad; mostrar nombre, dirección y una indicación útil de ubicación.
+- Permitir un enlace directo a una sede con posibilidad clara de cambiarla.
 - Mostrar progreso comprensible en los pasos relevantes.
 - Permitir volver conservando las elecciones que sigan siendo válidas.
 - Omitir pasos innecesarios, como elegir profesional cuando solo existe uno disponible para el servicio.
@@ -192,6 +194,7 @@ La selección se indica con fondo, texto e indicador; no solo con un cambio de c
 ### Profesional
 
 - Nombre y foto opcional.
+- Mostrar solo profesionales asignados y activos en la sede seleccionada.
 - Información breve relevante para elegir.
 - Opción **Cualquier profesional disponible** claramente identificada.
 - Explicación: “Te asignaremos un profesional disponible al confirmar”.
@@ -267,6 +270,7 @@ En escritorio: navegación lateral sobria. En móvil: acceso rápido a las tarea
 ### Inicio
 
 - Priorizar agenda de hoy y próximos turnos.
+- Permitir filtrar por sede y ofrecer una vista general del negocio; la sede de cada turno debe ser visible.
 - Métricas pequeñas con período explícito.
 - Acceso a **Nuevo turno** y **Copiar enlace de reservas**.
 - Estados vacíos que orienten a completar la configuración o compartir el enlace.
@@ -278,6 +282,7 @@ Los gráficos se incorporan cuando responden una pregunta concreta del dueño.
 - Escritorio: vistas diaria y semanal, con filtro por profesional.
 - Móvil: vista diaria o lista cronológica como opciones principales.
 - Mostrar hora, cliente, servicio y profesional según el contexto.
+- Filtrar por sede; en la vista general, identificar claramente la sede de cada turno.
 - Estados con texto y señales visuales coherentes.
 - Reservar el color para facilitar lectura, sin crear una agenda saturada.
 - Al usar colores por profesional, diferenciar los estados mediante etiquetas o iconos.
@@ -427,9 +432,9 @@ La terminología por rubro podrá adaptarse mediante plantillas conforme al alca
 
 ### Tres pantallas de referencia
 
-1. Bienvenida pública: identidad, confianza y jerarquía de acciones.
-2. Selección de horario: claridad, selección y resumen de reserva.
-3. Agenda del dueño: densidad, navegación y operación cotidiana.
+1. Bienvenida/selección de sede: identidad, confianza y ubicación clara.
+2. Selección de horario: claridad, sede, selección y resumen de reserva.
+3. Agenda del dueño: densidad, filtro por sede, navegación y operación cotidiana.
 
 Diseñar cada una en móvil y escritorio, y probar al menos dos identidades visuales diferentes sobre la misma estructura.
 

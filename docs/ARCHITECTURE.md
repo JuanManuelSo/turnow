@@ -142,8 +142,9 @@ Entidades previstas:
 
 - Negocios, configuración pública y reglas operativas.
 - Membresías de administradores.
-- Servicios y profesionales.
-- Relación de servicios habilitados por profesional.
+- Servicios compartidos por el negocio y profesionales.
+- Sedes y relación de profesionales asignados a cada sede.
+- Relación de servicios habilitados por profesional, compartida entre sedes.
 - Horarios semanales y excepciones por fecha.
 - Clientes dentro de cada negocio.
 - Reservas, ocupaciones de agenda y bloqueos.
@@ -155,7 +156,7 @@ Las agendas por recurso se incorporarán después. No se simularán canchas como
 
 ## 8. Fechas y cálculo de disponibilidad
 
-- Cada negocio tiene una zona horaria IANA; valor inicial propuesto: `America/Argentina/Buenos_Aires`.
+- Cada sede tiene una zona horaria IANA; valor inicial propuesto: `America/Argentina/Buenos_Aires`. La zona horaria del negocio sirve como valor inicial al crear sedes.
 - Inicio y fin de reservas se almacenan como instantes en columnas `timestamptz`.
 - Horarios recurrentes se expresan mediante día de semana y horas locales del negocio.
 - Las excepciones se aplican a fechas locales del negocio.
@@ -163,7 +164,7 @@ Las agendas por recurso se incorporarán después. No se simularán canchas como
 - Los intervalos son semiabiertos: `[inicio, fin)`, permitiendo que uno comience cuando termina otro.
 - Se diferencia duración del servicio, intervalo entre inicios y margen adicional de ocupación.
 
-El cálculo combina horario del negocio, horario del profesional, servicio habilitado, excepciones, ocupaciones, margen, anticipación mínima y horizonte de reserva.
+El cálculo recibe una sede explícita y combina horario de esa sede, horario del profesional en esa sede, servicio habilitado, excepciones, ocupaciones, margen, anticipación mínima y horizonte de reserva. Los servicios, precios y políticas de reserva son del negocio y se comparten entre sedes.
 
 La disponibilidad se calcula para rangos acotados; no se materializan todos los horarios posibles por adelantado. El MVP evita caché persistente de disponibilidad. La información pública de marca puede cachearse con invalidación al editarse.
 
@@ -173,7 +174,7 @@ La disponibilidad se calcula para rangos acotados; no se materializan todos los 
 
 Propuesta: una tabla de ocupaciones activas de agenda representa tanto reservas como bloqueos. Cada registro incluye negocio, profesional, rango temporal y tipo de ocupación, con relación a la reserva cuando corresponda.
 
-Una restricción de exclusión GiST impide que rangos activos del mismo negocio y profesional se superpongan. Se validará la disponibilidad de la extensión `btree_gist` en el entorno elegido y se creará mediante migración SQL.
+Una restricción de exclusión GiST impide que rangos activos del mismo negocio y profesional se superpongan, aun si las ocupaciones pertenecen a sedes distintas. La sede se conserva para consultar agenda y validar asignación, pero no forma parte de la clave de exclusión. Así un profesional que trabaja en varias sedes no puede tener dos turnos simultáneos.
 
 Las cancelaciones desactivan la ocupación dentro de la misma transacción que actualiza la reserva. El historial de la reserva se conserva. Las restricciones exactas se detallarán en `DATA_MODEL.md`.
 
@@ -181,7 +182,9 @@ Las cancelaciones desactivan la ocupación dentro de la misma transacción que a
 
 La exclusión temporal no impide por sí sola reservar mientras se modifica un horario. Las operaciones que cambian disponibilidad deben compartir un protocolo de bloqueo transaccional.
 
-Para el MVP se propone bloquear una fila estable del negocio dentro de las transacciones cortas de confirmación, cancelación, reprogramación, bloqueo y edición de reglas de agenda. Tras obtener el bloqueo se vuelven a leer y validar las reglas relevantes.
+Para el MVP se utiliza un bloqueo transaccional asesorado de PostgreSQL (`pg_advisory_xact_lock`) derivado del identificador del negocio dentro de las transacciones cortas de confirmación, cancelación, reprogramación, bloqueo y edición de reglas de agenda. Tras obtener el bloqueo se vuelven a leer y validar las reglas relevantes.
+
+El helper está en `src/server/db/locks.ts`. Se eligió un bloqueo asesorado en lugar de `SELECT FOR UPDATE` sobre la fila del negocio para no otorgar al usuario runtime permiso de actualización sobre esa fila. El bloqueo se libera automáticamente al confirmar o revertir la transacción.
 
 Esto serializa las escrituras de agenda de un mismo negocio y simplifica la corrección inicial. No bloquea otros negocios ni la consulta pública de disponibilidad. Se podrá reemplazar por bloqueos más específicos si las métricas justifican optimizarlo.
 

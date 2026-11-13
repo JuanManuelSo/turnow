@@ -9,9 +9,9 @@
 ## Recorridos
 
 - Bienvenida de **Estudio Norte**, peluquería ficticia en Rosario. Acción de reservar y acceso visible a cancelación.
-- Reserva: servicio → profesional o cualquiera → día y horario → nombre y teléfono → revisión → confirmación con profesional asignado y código copiable.
+- Reserva de cinco pasos: servicio → sede y profesional (o cualquiera de esa sede) → día y horario → nombre y teléfono → revisión → confirmación con profesional asignado, dirección y código copiable. Sedes: Urquiza 1526, 3 de Febrero 2464 y Presidente Roca 274 (Rosario). Al cambiar de sede se restablecen el profesional y el horario elegidos.
 - Cancelación: ingresar código → buscar y revisar → cancelar explícitamente → resultado. Los códigos cancelados informan ese estado.
-- Panel del negocio: agenda diaria, filtros, fecha, detalle, reserva manual, reprogramación y cancelación con confirmación. En móvil se muestra una lista cronológica, no una grilla reducida.
+- Panel del negocio: agenda diaria filtrada por sede y profesional, fecha, detalle, reserva manual, reprogramación —incluso entre sedes— y cancelación con confirmación. En móvil se muestra una lista cronológica, no una grilla reducida.
 - Página pública: nombre, paleta, tipografía y descripción con vista previa; publicar o descartar. Se avisa al salir con cambios pendientes.
 - Alternar Mineral/Botánica en la bienvenida para comparar la misma estructura. El panel conserva su identidad azul.
 
@@ -21,11 +21,12 @@ En **Probar estados** se puede activar falta de disponibilidad, ocupar el horari
 
 El código `NORTE-7K9P-2M4X` corresponde a una reserva ficticia inicial. Cualquier código inexistente permite ver el error. Tras reservar, el código nuevo permite cancelar esa reserva.
 
-Fecha de referencia congelada: **12 de noviembre de 2026**. Domingos sin atención; descanso de 13 a 14. Los servicios duran 30, 45 o 60 minutos. El selector combina horarios sin duplicarlos y verifica el intervalo completo. La reserva manual y la reprogramación comparten esa lógica. Los cambios no modifican el turno original hasta guardar.
+Fecha de referencia congelada: **12 de noviembre de 2026**. Domingos sin atención; descanso de 13 a 14. Los servicios duran 30, 45 o 60 minutos. El selector combina horarios sin duplicarlos: los horarios ocupados permanecen visibles como **Reservado**, con estilo diferenciado y sin posibilidad de elegirlos. En «cualquier profesional» se marca reservado solo cuando nadie puede atender en esa sede durante el intervalo completo. La reserva manual y la reprogramación comparten esa lógica. Los cambios no modifican el turno original hasta guardar. Cada profesional de ejemplo está asignado a una sede: Julia, Tomás y Lucía en Urquiza; Emilia y Mateo en 3 de Febrero; Renata e Iván en Presidente Roca. Estas asignaciones son ficticias y se reemplazarán cuando se conozca el equipo real.
 
 ## Qué es simulado
 
 - Todo ocurre en React y `localStorage`, solo en este navegador. Recargar conserva reservas e identidad; no hay backend, cuentas, autenticación, pagos ni servicios externos.
+- Las reservas guardadas antes de agregar las sedes se asignan a Urquiza 1526 al cargarse en esta versión. El esquema de producción ya contempla sedes, profesionales por sede y reservas asociadas a ubicación; este prototipo sigue usando solo React y `localStorage`, sin conectarse a ese esquema.
 - Confirmación en pantalla y breve espera simulada. No se envían emails, WhatsApp, SMS ni notificaciones reales.
 - El conflicto se fuerza desde el laboratorio; no demuestra garantías reales de concurrencia entre clientes.
 - El código es un identificador de demostración, no una credencial apta para producción. No hay control de intentos ni separación real entre negocios.

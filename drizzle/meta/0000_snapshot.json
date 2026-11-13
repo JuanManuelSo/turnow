@@ -1,0 +1,2568 @@
+{
+  "id": "995a268b-b5e8-4e90-9d53-5fd38dd779dc",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "app.appointment_access_codes": {
+      "name": "appointment_access_codes",
+      "schema": "app",
+      "columns": {
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appointment_id": {
+          "name": "appointment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code_ciphertext": {
+          "name": "code_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encryption_key_version": {
+          "name": "encryption_key_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "appointment_access_codes_business_id_businesses_id_fk": {
+          "name": "appointment_access_codes_business_id_businesses_id_fk",
+          "tableFrom": "appointment_access_codes",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "appointment_access_codes_appointment_fk": {
+          "name": "appointment_access_codes_appointment_fk",
+          "tableFrom": "appointment_access_codes",
+          "tableTo": "appointments",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "appointment_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "appointment_access_codes_business_id_appointment_id_pk": {
+          "name": "appointment_access_codes_business_id_appointment_id_pk",
+          "columns": [
+            "business_id",
+            "appointment_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "appointment_access_codes_hash_unique": {
+          "name": "appointment_access_codes_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "code_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "appointment_access_codes_hash_check": {
+          "name": "appointment_access_codes_hash_check",
+          "value": "\"app\".\"appointment_access_codes\".\"code_hash\" ~ '^[0-9a-f]{64}$'"
+        },
+        "appointment_access_codes_ciphertext_check": {
+          "name": "appointment_access_codes_ciphertext_check",
+          "value": "length(\"app\".\"appointment_access_codes\".\"code_ciphertext\") > 0 and \"app\".\"appointment_access_codes\".\"encryption_key_version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.appointment_events": {
+      "name": "appointment_events",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appointment_id": {
+          "name": "appointment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_type": {
+          "name": "actor_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_user_id": {
+          "name": "actor_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appointment_version": {
+          "name": "appointment_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "appointment_events_history_idx": {
+          "name": "appointment_events_history_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "appointment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "appointment_events_actor_idx": {
+          "name": "appointment_events_actor_idx",
+          "columns": [
+            {
+              "expression": "actor_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "appointment_events_business_id_businesses_id_fk": {
+          "name": "appointment_events_business_id_businesses_id_fk",
+          "tableFrom": "appointment_events",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "appointment_events_actor_user_id_users_id_fk": {
+          "name": "appointment_events_actor_user_id_users_id_fk",
+          "tableFrom": "appointment_events",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "actor_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "appointment_events_appointment_fk": {
+          "name": "appointment_events_appointment_fk",
+          "tableFrom": "appointment_events",
+          "tableTo": "appointments",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "appointment_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "appointment_events_business_id_unique": {
+          "name": "appointment_events_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "appointment_events_type_check": {
+          "name": "appointment_events_type_check",
+          "value": "\"app\".\"appointment_events\".\"event_type\" in ('created', 'cancelled', 'rescheduled', 'status_changed', 'corrected')"
+        },
+        "appointment_events_actor_check": {
+          "name": "appointment_events_actor_check",
+          "value": "\"app\".\"appointment_events\".\"actor_type\" in ('customer', 'owner', 'platform', 'system')"
+        },
+        "appointment_events_version_check": {
+          "name": "appointment_events_version_check",
+          "value": "\"app\".\"appointment_events\".\"appointment_version\" > 0"
+        },
+        "appointment_events_changes_check": {
+          "name": "appointment_events_changes_check",
+          "value": "jsonb_typeof(\"app\".\"appointment_events\".\"changes\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.appointments": {
+      "name": "appointments",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "professional_id": {
+          "name": "professional_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_id": {
+          "name": "service_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'confirmed'"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selection_mode": {
+          "name": "selection_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_minutes_snapshot": {
+          "name": "duration_minutes_snapshot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buffer_after_minutes_snapshot": {
+          "name": "buffer_after_minutes_snapshot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_minor_snapshot": {
+          "name": "price_minor_snapshot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_snapshot": {
+          "name": "currency_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cancellation_notice_minutes_snapshot": {
+          "name": "cancellation_notice_minutes_snapshot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone_snapshot": {
+          "name": "timezone_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_name_snapshot": {
+          "name": "service_name_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "professional_name_snapshot": {
+          "name": "professional_name_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_phone": {
+          "name": "customer_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_email": {
+          "name": "customer_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancellation_reason": {
+          "name": "cancellation_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "appointments_agenda_idx": {
+          "name": "appointments_agenda_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "appointments_professional_agenda_idx": {
+          "name": "appointments_professional_agenda_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "professional_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "appointments_customer_history_idx": {
+          "name": "appointments_customer_history_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "appointments_assignment_idx": {
+          "name": "appointments_assignment_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "professional_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "service_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "appointments_business_id_businesses_id_fk": {
+          "name": "appointments_business_id_businesses_id_fk",
+          "tableFrom": "appointments",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "appointments_assignment_fk": {
+          "name": "appointments_assignment_fk",
+          "tableFrom": "appointments",
+          "tableTo": "professional_services",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "professional_id",
+            "service_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "professional_id",
+            "service_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "appointments_customer_fk": {
+          "name": "appointments_customer_fk",
+          "tableFrom": "appointments",
+          "tableTo": "customers",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "customer_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "appointments_business_id_unique": {
+          "name": "appointments_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        },
+        "appointments_professional_identity_unique": {
+          "name": "appointments_professional_identity_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id",
+            "professional_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "appointments_status_check": {
+          "name": "appointments_status_check",
+          "value": "\"app\".\"appointments\".\"status\" in ('confirmed', 'cancelled', 'attended', 'no_show')"
+        },
+        "appointments_source_check": {
+          "name": "appointments_source_check",
+          "value": "\"app\".\"appointments\".\"source\" in ('public', 'manual')"
+        },
+        "appointments_selection_check": {
+          "name": "appointments_selection_check",
+          "value": "\"app\".\"appointments\".\"selection_mode\" in ('specific', 'any')"
+        },
+        "appointments_duration_check": {
+          "name": "appointments_duration_check",
+          "value": "\"app\".\"appointments\".\"duration_minutes_snapshot\" > 0 and \"app\".\"appointments\".\"ends_at\" - \"app\".\"appointments\".\"starts_at\" = \"app\".\"appointments\".\"duration_minutes_snapshot\" * interval '1 minute'"
+        },
+        "appointments_snapshot_limits_check": {
+          "name": "appointments_snapshot_limits_check",
+          "value": "\"app\".\"appointments\".\"buffer_after_minutes_snapshot\" >= 0 and \"app\".\"appointments\".\"cancellation_notice_minutes_snapshot\" >= 0 and (\"app\".\"appointments\".\"price_minor_snapshot\" is null or \"app\".\"appointments\".\"price_minor_snapshot\" >= 0)"
+        },
+        "appointments_currency_check": {
+          "name": "appointments_currency_check",
+          "value": "\"app\".\"appointments\".\"currency_snapshot\" ~ '^[A-Z]{3}$'"
+        },
+        "appointments_cancelled_at_check": {
+          "name": "appointments_cancelled_at_check",
+          "value": "(\"app\".\"appointments\".\"status\" = 'cancelled') = (\"app\".\"appointments\".\"cancelled_at\" is not null)"
+        },
+        "appointments_version_check": {
+          "name": "appointments_version_check",
+          "value": "\"app\".\"appointments\".\"version\" > 0"
+        },
+        "appointments_names_check": {
+          "name": "appointments_names_check",
+          "value": "length(trim(\"app\".\"appointments\".\"customer_name\")) > 0 and length(trim(\"app\".\"appointments\".\"service_name_snapshot\")) > 0 and length(trim(\"app\".\"appointments\".\"professional_name_snapshot\")) > 0 and length(trim(\"app\".\"appointments\".\"timezone_snapshot\")) > 0"
+        },
+        "appointments_phone_check": {
+          "name": "appointments_phone_check",
+          "value": "\"app\".\"appointments\".\"customer_phone\" ~ '^[+][1-9][0-9]{1,14}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.booking_requests": {
+      "name": "booking_requests",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appointment_id": {
+          "name": "appointment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "booking_requests_business_id_businesses_id_fk": {
+          "name": "booking_requests_business_id_businesses_id_fk",
+          "tableFrom": "booking_requests",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "booking_requests_appointment_fk": {
+          "name": "booking_requests_appointment_fk",
+          "tableFrom": "booking_requests",
+          "tableTo": "appointments",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "appointment_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "booking_requests_business_id_unique": {
+          "name": "booking_requests_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        },
+        "booking_requests_key_unique": {
+          "name": "booking_requests_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "idempotency_key"
+          ]
+        },
+        "booking_requests_appointment_unique": {
+          "name": "booking_requests_appointment_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "appointment_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "booking_requests_hash_check": {
+          "name": "booking_requests_hash_check",
+          "value": "\"app\".\"booking_requests\".\"request_hash\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.business_members": {
+      "name": "business_members",
+      "schema": "app",
+      "columns": {
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'owner'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "business_members_owner_unique": {
+          "name": "business_members_owner_unique",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"app\".\"business_members\".\"role\" = 'owner'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "business_members_user_idx": {
+          "name": "business_members_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "business_members_business_id_businesses_id_fk": {
+          "name": "business_members_business_id_businesses_id_fk",
+          "tableFrom": "business_members",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "business_members_user_id_users_id_fk": {
+          "name": "business_members_user_id_users_id_fk",
+          "tableFrom": "business_members",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "business_members_business_id_user_id_pk": {
+          "name": "business_members_business_id_user_id_pk",
+          "columns": [
+            "business_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "business_members_role_check": {
+          "name": "business_members_role_check",
+          "value": "\"app\".\"business_members\".\"role\" = 'owner'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.business_pages": {
+      "name": "business_pages",
+      "schema": "app",
+      "columns": {
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "headline": {
+          "name": "headline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address_text": {
+          "name": "address_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "map_url": {
+          "name": "map_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "arrival_instructions": {
+          "name": "arrival_instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "logo_storage_path": {
+          "name": "logo_storage_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cover_storage_path": {
+          "name": "cover_storage_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "social_links": {
+          "name": "social_links",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "theme": {
+          "name": "theme",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visible_sections": {
+          "name": "visible_sections",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "business_pages_business_id_businesses_id_fk": {
+          "name": "business_pages_business_id_businesses_id_fk",
+          "tableFrom": "business_pages",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "business_pages_json_check": {
+          "name": "business_pages_json_check",
+          "value": "jsonb_typeof(\"app\".\"business_pages\".\"social_links\") = 'object' and jsonb_typeof(\"app\".\"business_pages\".\"theme\") = 'object' and jsonb_typeof(\"app\".\"business_pages\".\"visible_sections\") = 'object'"
+        },
+        "business_pages_theme_version_check": {
+          "name": "business_pages_theme_version_check",
+          "value": "\"app\".\"business_pages\".\"theme\" @> '{\"schema_version\":1}'::jsonb"
+        },
+        "business_pages_version_check": {
+          "name": "business_pages_version_check",
+          "value": "\"app\".\"business_pages\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.business_settings": {
+      "name": "business_settings",
+      "schema": "app",
+      "columns": {
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "slot_interval_minutes": {
+          "name": "slot_interval_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buffer_after_minutes": {
+          "name": "buffer_after_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "min_booking_notice_minutes": {
+          "name": "min_booking_notice_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "booking_horizon_days": {
+          "name": "booking_horizon_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cancellation_notice_minutes": {
+          "name": "cancellation_notice_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allow_any_professional": {
+          "name": "allow_any_professional",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "public_booking_enabled": {
+          "name": "public_booking_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "business_settings_business_id_businesses_id_fk": {
+          "name": "business_settings_business_id_businesses_id_fk",
+          "tableFrom": "business_settings",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "business_settings_interval_check": {
+          "name": "business_settings_interval_check",
+          "value": "\"app\".\"business_settings\".\"slot_interval_minutes\" > 0 and \"app\".\"business_settings\".\"slot_interval_minutes\" <= 1440"
+        },
+        "business_settings_limits_check": {
+          "name": "business_settings_limits_check",
+          "value": "\"app\".\"business_settings\".\"buffer_after_minutes\" >= 0 and \"app\".\"business_settings\".\"min_booking_notice_minutes\" >= 0 and \"app\".\"business_settings\".\"booking_horizon_days\" > 0 and \"app\".\"business_settings\".\"cancellation_notice_minutes\" >= 0"
+        },
+        "business_settings_version_check": {
+          "name": "business_settings_version_check",
+          "value": "\"app\".\"business_settings\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.businesses": {
+      "name": "businesses",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'America/Argentina/Buenos_Aires'"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ARS'"
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "businesses_slug_unique": {
+          "name": "businesses_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "businesses_name_check": {
+          "name": "businesses_name_check",
+          "value": "length(trim(\"app\".\"businesses\".\"name\")) > 0"
+        },
+        "businesses_slug_check": {
+          "name": "businesses_slug_check",
+          "value": "\"app\".\"businesses\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "businesses_status_check": {
+          "name": "businesses_status_check",
+          "value": "\"app\".\"businesses\".\"status\" in ('draft', 'active', 'suspended', 'archived')"
+        },
+        "businesses_currency_check": {
+          "name": "businesses_currency_check",
+          "value": "\"app\".\"businesses\".\"currency\" ~ '^[A-Z]{3}$'"
+        },
+        "businesses_timezone_check": {
+          "name": "businesses_timezone_check",
+          "value": "length(trim(\"app\".\"businesses\".\"timezone\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.calendar_occupancies": {
+      "name": "calendar_occupancies",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "professional_id": {
+          "name": "professional_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appointment_id": {
+          "name": "appointment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "calendar_occupancies_professional_idx": {
+          "name": "calendar_occupancies_professional_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "professional_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "calendar_occupancies_creator_idx": {
+          "name": "calendar_occupancies_creator_idx",
+          "columns": [
+            {
+              "expression": "created_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "calendar_occupancies_business_id_businesses_id_fk": {
+          "name": "calendar_occupancies_business_id_businesses_id_fk",
+          "tableFrom": "calendar_occupancies",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "calendar_occupancies_created_by_user_id_users_id_fk": {
+          "name": "calendar_occupancies_created_by_user_id_users_id_fk",
+          "tableFrom": "calendar_occupancies",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "calendar_occupancies_professional_fk": {
+          "name": "calendar_occupancies_professional_fk",
+          "tableFrom": "calendar_occupancies",
+          "tableTo": "professionals",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "professional_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "calendar_occupancies_appointment_fk": {
+          "name": "calendar_occupancies_appointment_fk",
+          "tableFrom": "calendar_occupancies",
+          "tableTo": "appointments",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "appointment_id",
+            "professional_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id",
+            "professional_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "calendar_occupancies_business_id_unique": {
+          "name": "calendar_occupancies_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        },
+        "calendar_occupancies_appointment_unique": {
+          "name": "calendar_occupancies_appointment_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "appointment_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "calendar_occupancies_bounds_check": {
+          "name": "calendar_occupancies_bounds_check",
+          "value": "\"app\".\"calendar_occupancies\".\"starts_at\" < \"app\".\"calendar_occupancies\".\"ends_at\""
+        },
+        "calendar_occupancies_kind_check": {
+          "name": "calendar_occupancies_kind_check",
+          "value": "(\"app\".\"calendar_occupancies\".\"kind\" = 'appointment' and \"app\".\"calendar_occupancies\".\"appointment_id\" is not null) or (\"app\".\"calendar_occupancies\".\"kind\" = 'block' and \"app\".\"calendar_occupancies\".\"appointment_id\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.customers": {
+      "name": "customers",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone_normalized": {
+          "name": "phone_normalized",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "customers_phone_idx": {
+          "name": "customers_phone_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "phone_normalized",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "customers_business_id_businesses_id_fk": {
+          "name": "customers_business_id_businesses_id_fk",
+          "tableFrom": "customers",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "customers_business_id_unique": {
+          "name": "customers_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "customers_name_check": {
+          "name": "customers_name_check",
+          "value": "length(trim(\"app\".\"customers\".\"display_name\")) > 0"
+        },
+        "customers_phone_check": {
+          "name": "customers_phone_check",
+          "value": "\"app\".\"customers\".\"phone_normalized\" ~ '^[+][1-9][0-9]{1,14}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.exception_intervals": {
+      "name": "exception_intervals",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exception_id": {
+          "name": "exception_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_minute": {
+          "name": "start_minute",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_minute": {
+          "name": "end_minute",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "exception_intervals_exception_idx": {
+          "name": "exception_intervals_exception_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "exception_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "exception_intervals_business_id_businesses_id_fk": {
+          "name": "exception_intervals_business_id_businesses_id_fk",
+          "tableFrom": "exception_intervals",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "exception_intervals_exception_fk": {
+          "name": "exception_intervals_exception_fk",
+          "tableFrom": "exception_intervals",
+          "tableTo": "schedule_exceptions",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "exception_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "exception_intervals_business_id_unique": {
+          "name": "exception_intervals_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "exception_intervals_bounds_check": {
+          "name": "exception_intervals_bounds_check",
+          "value": "\"app\".\"exception_intervals\".\"start_minute\" >= 0 and \"app\".\"exception_intervals\".\"start_minute\" < \"app\".\"exception_intervals\".\"end_minute\" and \"app\".\"exception_intervals\".\"end_minute\" <= 1440"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.professional_services": {
+      "name": "professional_services",
+      "schema": "app",
+      "columns": {
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "professional_id": {
+          "name": "professional_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_id": {
+          "name": "service_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "professional_services_service_idx": {
+          "name": "professional_services_service_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "service_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "professional_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "professional_services_business_id_businesses_id_fk": {
+          "name": "professional_services_business_id_businesses_id_fk",
+          "tableFrom": "professional_services",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "professional_services_professional_fk": {
+          "name": "professional_services_professional_fk",
+          "tableFrom": "professional_services",
+          "tableTo": "professionals",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "professional_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "professional_services_service_fk": {
+          "name": "professional_services_service_fk",
+          "tableFrom": "professional_services",
+          "tableTo": "services",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "service_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "professional_services_business_id_professional_id_service_id_pk": {
+          "name": "professional_services_business_id_professional_id_service_id_pk",
+          "columns": [
+            "business_id",
+            "professional_id",
+            "service_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "app.professionals": {
+      "name": "professionals",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "photo_storage_path": {
+          "name": "photo_storage_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "professionals_catalog_idx": {
+          "name": "professionals_catalog_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "professionals_business_id_businesses_id_fk": {
+          "name": "professionals_business_id_businesses_id_fk",
+          "tableFrom": "professionals",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "professionals_business_id_unique": {
+          "name": "professionals_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "professionals_name_check": {
+          "name": "professionals_name_check",
+          "value": "length(trim(\"app\".\"professionals\".\"display_name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.schedule_exceptions": {
+      "name": "schedule_exceptions",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "local_date": {
+          "name": "local_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "schedule_exceptions_business_id_businesses_id_fk": {
+          "name": "schedule_exceptions_business_id_businesses_id_fk",
+          "tableFrom": "schedule_exceptions",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "schedule_exceptions_schedule_fk": {
+          "name": "schedule_exceptions_schedule_fk",
+          "tableFrom": "schedule_exceptions",
+          "tableTo": "schedules",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "schedule_exceptions_business_id_unique": {
+          "name": "schedule_exceptions_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        },
+        "schedule_exceptions_date_unique": {
+          "name": "schedule_exceptions_date_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "schedule_id",
+            "local_date"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "schedule_exceptions_mode_check": {
+          "name": "schedule_exceptions_mode_check",
+          "value": "\"app\".\"schedule_exceptions\".\"mode\" in ('closed', 'custom')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.schedules": {
+      "name": "schedules",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "professional_id": {
+          "name": "professional_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "schedules_business_unique": {
+          "name": "schedules_business_unique",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"app\".\"schedules\".\"professional_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "schedules_professional_unique": {
+          "name": "schedules_professional_unique",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "professional_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"app\".\"schedules\".\"professional_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "schedules_business_id_businesses_id_fk": {
+          "name": "schedules_business_id_businesses_id_fk",
+          "tableFrom": "schedules",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "schedules_professional_fk": {
+          "name": "schedules_professional_fk",
+          "tableFrom": "schedules",
+          "tableTo": "professionals",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "professional_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "schedules_business_id_unique": {
+          "name": "schedules_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "app.services": {
+      "name": "services",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_minutes": {
+          "name": "duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_minor": {
+          "name": "price_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "show_price": {
+          "name": "show_price",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "services_catalog_idx": {
+          "name": "services_catalog_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "services_business_id_businesses_id_fk": {
+          "name": "services_business_id_businesses_id_fk",
+          "tableFrom": "services",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "services_business_id_unique": {
+          "name": "services_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "services_name_check": {
+          "name": "services_name_check",
+          "value": "length(trim(\"app\".\"services\".\"name\")) > 0"
+        },
+        "services_duration_check": {
+          "name": "services_duration_check",
+          "value": "\"app\".\"services\".\"duration_minutes\" > 0"
+        },
+        "services_price_check": {
+          "name": "services_price_check",
+          "value": "\"app\".\"services\".\"price_minor\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "app.weekly_intervals": {
+      "name": "weekly_intervals",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekday": {
+          "name": "weekday",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_minute": {
+          "name": "start_minute",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_minute": {
+          "name": "end_minute",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "weekly_intervals_schedule_idx": {
+          "name": "weekly_intervals_schedule_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "schedule_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "weekday",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "weekly_intervals_business_id_businesses_id_fk": {
+          "name": "weekly_intervals_business_id_businesses_id_fk",
+          "tableFrom": "weekly_intervals",
+          "tableTo": "businesses",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "weekly_intervals_schedule_fk": {
+          "name": "weekly_intervals_schedule_fk",
+          "tableFrom": "weekly_intervals",
+          "tableTo": "schedules",
+          "schemaTo": "app",
+          "columnsFrom": [
+            "business_id",
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "business_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "weekly_intervals_business_id_unique": {
+          "name": "weekly_intervals_business_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "business_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "weekly_intervals_weekday_check": {
+          "name": "weekly_intervals_weekday_check",
+          "value": "\"app\".\"weekly_intervals\".\"weekday\" between 1 and 7"
+        },
+        "weekly_intervals_bounds_check": {
+          "name": "weekly_intervals_bounds_check",
+          "value": "\"app\".\"weekly_intervals\".\"start_minute\" >= 0 and \"app\".\"weekly_intervals\".\"start_minute\" < \"app\".\"weekly_intervals\".\"end_minute\" and \"app\".\"weekly_intervals\".\"end_minute\" <= 1440"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "app": "app"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

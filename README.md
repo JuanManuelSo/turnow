@@ -26,20 +26,29 @@ Next.js 16, React 19 y TypeScript estricto. Dependencias preparadas para Supabas
 - `npm run lint`: análisis estático.
 - `npm run typecheck`: comprobación de tipos.
 - `npm run build`: compilación de producción.
-- `npm test`: pruebas unitarias y de integración cuando se incorporen. Actualmente no hay casos Vitest; no se considera una verificación aprobada sin pruebas.
+- `npm test`: pruebas Vitest; las de integración requieren Docker activo.
+- `npm run test:db`: pruebas del esquema sobre PostgreSQL 17 descartable, sin conectar a Supabase.
+- `npm run db:generate`: generar migraciones locales desde el esquema Drizzle.
+- `npm run db:check`: verificar metadatos de migraciones.
 - `npm run test:prototype`: recorridos existentes con el servidor local iniciado y Edge instalado.
 
 Tailwind está disponible sin Preflight para preservar los estilos del prototipo. `components.json` prepara las rutas de shadcn/ui; sus componentes y tokens se incorporarán conforme se implementen pantallas reales.
 
 ESLint conserva advertencias de efectos React en tres archivos del prototipo. La regla `set-state-in-effect` continúa siendo error para los demás archivos. ESLint 9 se mantiene por compatibilidad con los plugins de la configuración de Next.js; revisar su actualización cuando esos plugins admitan ESLint 10.
 
-`.env.example` documenta las variables futuras. Copiarlo a `.env.local` al conectar Supabase. No se necesitan credenciales para ejecutar el prototipo. Las conexiones, el esquema de datos y las migraciones todavía no están implementados.
+`.env.example` documenta las variables. Los valores reales van en `.env.local`. No se necesitan credenciales para ejecutar el prototipo. El esquema Drizzle tiene 19 tablas y las cuatro migraciones están aplicadas al proyecto Supabase de desarrollo. Incluye sedes, profesionales asignados por sede y reservas con ubicación. `DATABASE_URL` usa el usuario runtime `turnow_app`, miembro de `turnow_runtime`.
+
+`npm run db:ping -- --migration` verifica la conexión administrativa sin modificar datos. `npm run db:ping` verifica la conexión runtime y rechaza roles privilegiados.
+
+Ver [instrucciones de migraciones y permisos](drizzle/README.md). `npm run db:migrate` aplica las migraciones a `DATABASE_MIGRATION_URL`; no se ejecuta automáticamente.
 
 ## Documentación
 
 - [Producto](docs/PRODUCT.md)
 - [Diseño](docs/DESIGN.md)
 - [Arquitectura](docs/ARCHITECTURE.md)
+- [Modelo de datos](docs/DATA_MODEL.md)
+- [Checklist de pendientes](docs/CHECKLIST.md)
 
 ## Estructura
 
@@ -69,8 +78,8 @@ La aplicación Next.js está inicializada en la raíz. Los grupos de rutas exist
 ## Próximos pasos
 
 1. Validar el prototipo con clientes y dueños antes de implementar persistencia real.
-2. Definir el modelo de datos y las primeras migraciones.
-3. Configurar entornos y conectar Supabase.
-4. Implementar configuración del negocio y el primer recorrido de reserva.
+2. Definir y validar diseño del selector de sede y agenda por sede con el prototipo simulado.
+3. Configurar Supabase Auth para el alta y acceso del dueño.
+4. Implementar configuración del negocio y el motor de disponibilidad por sede sobre el esquema migrado.
 
 Las cuentas de servicios, secretos y datos reales no deben incorporarse al repositorio.
