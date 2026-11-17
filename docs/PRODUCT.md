@@ -61,15 +61,23 @@ La primera entrega implementará agendas por profesional. Las agendas de recurso
 ### Dueño del negocio
 
 - Accede únicamente a la información de su negocio.
-- Configura página pública, servicios, profesionales, horarios y reglas.
+- Configura la publicación de su página, servicios, profesionales, horarios y reglas.
 - Consulta y administra la agenda de todo su equipo.
-- Crea reservas manuales y bloquea horarios.
-- Registra asistencia y ausencia de clientes.
+- Consulta reportes consolidados y por sede.
+- Crea, reprograma y cancela reservas manuales; bloquea horarios.
+- Registra asistencia, ausencia, cobros manuales y correcciones auditables.
 
 ### Profesional
 
 - Es una persona configurable dentro del negocio, con servicios y agenda propios.
-- No tiene acceso individual al panel en el MVP.
+- En el MVP puede figurar como responsable de una atención registrada desde la cuenta operativa de su sede, pero no inicia sesión individualmente.
+
+### Operador de sede
+
+- Utiliza una cuenta operativa compartida del local, separada para cada sede.
+- Consulta y administra únicamente la agenda de su sede; registra atenciones y cobros y selecciona al profesional responsable entre los habilitados en esa sede.
+- Su cuenta no habilita reportes globales ni cambios en catálogo, reglas o datos de otras sedes. El dueño conserva el acceso completo.
+- Al ser compartida, la cuenta identifica la sede que registró la operación, no a la persona física que la cargó.
 
 ### Cliente
 
@@ -83,10 +91,12 @@ La visión incluye reservas, adaptación por rubro, edición del turnero, avisos
 
 ### Etapa 1: MVP operativo
 
+> **Alcance del MVP (16/11/2026):** la edición de la página pública desde el panel queda fuera de esta entrega. La página se publica con la presentación predeterminada y los datos cargados en el alta; el editor existente se conserva oculto tras `NEXT_PUBLIC_PAGE_EDITOR_ENABLED` para retomarlo después.
+
 ### Incluido
 
 - Múltiples negocios con datos y permisos aislados.
-- Varias sedes por negocio y una cuenta de dueño por negocio.
+- Varias sedes por negocio, una cuenta de dueño y una cuenta operativa compartida por sede.
 - Página pública con enlace propio.
 - Catálogo compartido de servicios, precios y políticas para todas las sedes.
 - Profesionales asignados a una o más sedes, con horarios propios en cada sede.
@@ -114,18 +124,18 @@ El canal inicial de mensajería y la posibilidad de adelantar estas funciones al
 - Reserva directa de recursos, como canchas.
 - Disponibilidad conjunta de profesional y recurso, como una cabina o equipo.
 - Precios por franja y reservas recurrentes.
-- Sucursales, accesos individuales del equipo y permisos.
-- Señas, pagos e integraciones con calendarios.
+- Cuentas personales individuales de profesionales y permisos por persona.
+- Señas, cobro automático e integraciones bidireccionales con calendarios.
 
 ### Funcionalidades fuera de la primera entrega
 
 - Canchas, clases grupales y reservas con cupos.
 - Gestión de sillas, cabinas o equipos como recursos compartidos.
 - Precios, duraciones o políticas diferentes por sede.
-- Cuentas y permisos individuales para empleados.
+- Cuentas personales por profesional; el MVP usa una credencial operativa compartida por sede.
 - Varios servicios en una misma reserva.
 - Precios o duraciones diferentes por profesional para un mismo servicio.
-- Pagos, señas, facturación y cobro automático de la suscripción.
+- Pasarela de pago, señas, facturación y cobro automático de la suscripción. Los cobros de atención se anotan manualmente en el MVP.
 - Recordatorios automáticos por WhatsApp y sincronización con calendarios externos.
 - Lista de espera, reservas recurrentes y promociones.
 - Editor visual libre, dominios propios y landing personalizada incluida.

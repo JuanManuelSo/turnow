@@ -96,7 +96,52 @@ async function reserve(q: Query, f: Fixture, options: {
 describe('esquema PostgreSQL y migraciones', () => {
   it('aplica las migraciones y puede ejecutar el migrador nuevamente', async () => {
     const [{ count }] = await db`select count(*)::int as count from information_schema.tables where table_schema = 'app'`;
-    expect(count).toBe(19);
+    expect(count).toBe(21);
+  });
+
+  it('conserva cobros manuales y permite corregirlos sin borrar el original', async () => {
+    const f = await fixture();
+    const appointment = await db.begin(tx => reserve(tx, f));
+    const actor = randomUUID();
+    await db`insert into auth.users (id) values (${actor})`;
+    const [payment] = await db`insert into app.appointment_payments
+      (business_id, appointment_id, amount_minor, currency, method, recorded_by_user_id)
+      values (${f.business}, ${appointment}, 25000, 'ARS', 'cash', ${actor}) returning id`;
+    await db`update app.appointment_payments set reversed_at = now(), reversal_reason = 'Importe incorrecto'
+      where business_id = ${f.business} and id = ${payment.id}`;
+    await db`insert into app.appointment_payments
+      (business_id, appointment_id, amount_minor, currency, method, corrected_payment_id, recorded_by_user_id)
+      values (${f.business}, ${appointment}, 20000, 'ARS', 'transfer', ${payment.id}, ${actor})`;
+
+    const rows = await db`select amount_minor, reversed_at from app.appointment_payments
+      where business_id = ${f.business} and appointment_id = ${appointment} order by recorded_at, id`;
+    expect(rows).toHaveLength(2);
+    expect(rows[0].reversed_at).not.toBeNull();
+    expect(rows[1].amount_minor).toBe(20000);
+    await expect(db`insert into app.appointment_payments
+      (business_id, appointment_id, amount_minor, currency, method)
+      values (${f.business}, ${appointment}, 0, 'ARS', 'cash')`).rejects.toMatchObject({ code: '23514' });
+  });
+
+  it('admite un dueño por negocio y un operador separado por sede', async () => {
+    const f = await fixture();
+    const owner = randomUUID();
+    const operator = randomUUID();
+    const secondOperator = randomUUID();
+    const anotherOwner = randomUUID();
+    await db`insert into auth.users (id) values (${owner}), (${operator}), (${secondOperator}), (${anotherOwner})`;
+    await db`insert into app.business_members (business_id, user_id, role)
+      values (${f.business}, ${owner}, 'owner')`;
+    await db`insert into app.business_members (business_id, user_id, role, location_id)
+      values (${f.business}, ${operator}, 'location_operator', ${f.location}),
+        (${f.business}, ${secondOperator}, 'location_operator', ${f.otherLocation})`;
+
+    await expect(db`insert into app.business_members (business_id, user_id, role)
+      values (${f.business}, ${anotherOwner}, 'owner')`).rejects.toMatchObject({ code: '23505' });
+    await expect(db`insert into app.business_members (business_id, user_id, role, location_id)
+      values (${f.business}, ${anotherOwner}, 'location_operator', ${f.location})`).rejects.toMatchObject({ code: '23505' });
+    await expect(db`insert into app.business_members (business_id, user_id, role, location_id)
+      values (${f.business}, ${anotherOwner}, 'owner', ${f.location})`).rejects.toMatchObject({ code: '23514' });
   });
 
   it('rechaza relaciones entre negocios distintos', async () => {

@@ -116,12 +116,17 @@ tests/
 
 ## 6. Autenticación y aislamiento entre negocios
 
-Supabase Auth identifica al dueño. Una membresía vincula su usuario con el negocio que puede administrar. El MVP permite una cuenta de dueño por negocio; la relación deja lugar a futuros roles.
+Supabase Auth identificará al dueño y a los operadores. Una membresía vincula al usuario con el negocio y su rol. El MVP permite una cuenta de dueño por negocio y una cuenta operativa compartida por sede. El operador solo administra la sede asignada; el dueño puede administrar todas las sedes. Las cuentas personales por profesional quedan para una etapa posterior.
+
+La primera integración ya implementa login por email/contraseña, renovación SSR de sesión, cierre, recuperación y una ruta de dashboard protegida por membresía. La configuración del proveedor de email y el alta/invitación de usuarios con membresía siguen siendo pasos operativos pendientes. Un usuario de Auth sin membresía válida no puede entrar al panel.
 
 ### Autorización
 
 - Verificar la identidad con las APIs de servidor recomendadas por Supabase.
 - Resolver permisos desde membresías persistidas, no desde un `business_id` enviado por el navegador.
+- Para `location_operator`, resolver la sede exclusivamente desde su membresía y limitar a ella toda consulta o escritura, aunque el cliente modifique parámetros.
+- El operador puede asignar la atención a un profesional de su sede; el actor auditado sigue siendo la cuenta operativa compartida, no una persona individual.
+- Registrar en cada operación tanto el profesional que realizó el servicio como el usuario autenticado que registró/corrigió el dato.
 - Cada operación privada debe autorizar su negocio y objeto concreto.
 - Resolver el negocio público mediante su slug, permitiendo solo información pública y acciones expresamente expuestas.
 - Usar claves y relaciones compuestas cuando corresponda para impedir referencias entre entidades de distintos negocios.
@@ -141,7 +146,7 @@ Las operaciones administrativas de plataforma se mantienen separadas y restringi
 Entidades previstas:
 
 - Negocios, configuración pública y reglas operativas.
-- Membresías de administradores.
+- Membresías de dueño a nivel negocio y operador acotado a sede.
 - Servicios compartidos por el negocio y profesionales.
 - Sedes y relación de profesionales asignados a cada sede.
 - Relación de servicios habilitados por profesional, compartida entre sedes.

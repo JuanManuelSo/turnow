@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 410" role="img" aria-labelledby="title">
+  <title id="title">Silueta de hombre con traje, corbata y barba sobre colores de barbería</title>
+  <rect width="360" height="410" fill="#fff"/>
+  <path d="M0 0h360L0 158zM0 296l360-154v88L0 384z" fill="#d8edf8"/>
+  <path d="M0 228 360 82v66L0 294z" fill="#b52535"/>
+  <path d="M122 19c-4 32 9 42 20 48 11-9 23-17 38-17s27 8 38 17c11-6 24-16 20-48 20 26 8 60-12 70-12 6-25 11-46 11s-34-5-46-11c-20-10-32-44-12-70z" fill="#182a48"/>
+  <path d="M159 66c6-10 14-12 21-12s15 2 21 12c-5-2-10-2-14 2l-7 6-7-6c-4-4-9-4-14-2z" fill="#182a48"/>
+  <path d="M114 101 180 147l66-46 15 34-81 156-81-156z" fill="#fff"/>
+  <path d="m32 161 89-60 59 64-18 245H16l7-213zM328 161l-89-60-59 64 18 245h146l-7-213z" fill="#182a48"/>
+  <path d="m123 104 57 61-23 42-30-39zM237 104l-57 61 23 42 30-39z" fill="#fff"/>
+  <path d="m122 105 58 60-49 245H16l7-213 9-36 76 79 23-29-23-32zM238 105l-58 60 49 245h115l-7-213-9-36-76 79-23-29 23-32z" fill="#213553"/>
+  <path d="m167 168 13-11 13 11-8 22 11 173-16 28-16-28 11-173z" fill="#182a48"/>
+  <path d="m274 267 44-8v8l-44 8z" fill="#fff"/>
+</svg>

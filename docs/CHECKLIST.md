@@ -1,25 +1,32 @@
 # Turnow — checklist de pendientes
 
-**Actualizado:** 13 de noviembre de 2026  
+**Actualizado:** 16 de noviembre de 2026
 **Propósito:** tener a mano el estado y los próximos pasos del producto. Las casillas marcan trabajo pendiente, no tareas ya realizadas.
 
 ## Estado actual
 
 - [x] Proyecto Next.js/TypeScript inicializado y prototipo visual existente.
 - [x] Documentos base creados: `docs/PRODUCT.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md` y `docs/DATA_MODEL.md`.
-- [x] Esquema de 19 tablas y cuatro migraciones (`0000`–`0003`) aplicadas a Supabase de desarrollo.
+- [x] Esquema de 19 tablas y seis migraciones (`0000`–`0005`) aplicadas a Supabase de desarrollo.
 - [x] Rol runtime `turnow_app` conectado con permisos limitados; `db:ping` verificado en runtime y migración.
 - [x] Restricciones de integridad de agenda, snapshots de reservas y bloqueo asesorado por negocio.
 - [x] Soporte de varias sedes: `locations`, `professional_locations`, agendas y reservas por sede, y protección contra solapamientos de un profesional entre sedes.
-- [x] Pruebas de PostgreSQL: 15/15 pasan; typecheck y build pasan. Lint pasa con 5 advertencias preexistentes del prototipo.
+- [x] Modelo de membresías preparado para una cuenta de dueño por negocio y una cuenta operativa compartida por sede, con límites de rol y sede en base de datos.
+- [x] Login por email/contraseña integrado con Supabase SSR, renovación de sesión, logout, recuperación de contraseña y dashboard protegido por membresía.
+- [x] Alta inicial local transaccional preparada para crear un negocio, sus sedes y la membresía del dueño con `npm run setup:business`.
+- [x] Pruebas de PostgreSQL: 16/16 pasan; typecheck y build pasan. Lint pasa con 5 advertencias preexistentes del prototipo.
 - [x] Prototipo actualizado con selección de sede, agenda filtrada por sede y reservas manuales/reprogramaciones entre sedes; e2e de Playwright pasa.
-- [ ] Todavía no hay frontend de producto validado ni recorrido de reservas conectado a datos reales.
-- [ ] Todavía no está configurado el flujo de Supabase Auth ni existe alta de dueño/negocio en la aplicación.
+- [x] Alta inicial completada en desarrollo: negocio `peluqueria-de-hombres`, tres sedes (`urquiza`, `febrero`, `roca`) y membresía de dueño verificada.
+- [x] El dueño ingresa con Supabase Auth y llega a `/dashboard` con alcance de negocio.
+- [x] Panel del dueño persistido y validado: sedes, servicios, profesionales, horarios y reglas, con recorrido E2E y revisión visual.
+- [x] Editor de textos, contacto, redes e identidad de la página pública implementado; queda oculto para el MVP con `NEXT_PUBLIC_PAGE_EDITOR_ENABLED=false` y se retoma después del piloto.
+- [ ] Todavía no hay recorrido de reservas conectado a datos reales ni agenda operativa.
+- [ ] Falta configurar SMTP propio y probar recuperación de contraseña. Las tres cuentas operativas de desarrollo ya están creadas y vinculadas por sede.
 
 ## 1. Cerrar decisiones de producto
 
 - [ ] Validar con dueños de barberías/salones el problema, el flujo y las funciones imprescindibles del MVP.
-- [ ] Confirmar el alcance inicial: varias sedes, un dueño, profesionales sin cuenta, sin pagos online y sin WhatsApp automático.
+- [ ] Confirmar el alcance inicial: varias sedes, un dueño, una credencial operativa compartida por sede, profesionales sin cuenta individual, sin pagos online y sin WhatsApp automático.
 - [ ] Definir valores iniciales de anticipación mínima, días máximos para reservar y plazo de cancelación.
 - [ ] Validar cómo se asigna un profesional cuando se elige “Cualquier profesional disponible”.
 - [ ] Definir qué ve el cliente si se suspende un negocio o una sede y cómo se gestionan sus reservas existentes.
@@ -32,15 +39,15 @@
 
 ## 2. Definir diseño y frontend antes de conectar reservas
 
-- [ ] Revisar el prototipo actual y decidir qué partes se conservan, ajustan o reemplazan.
-- [ ] Definir arquitectura de navegación y mapa de pantallas para público, cancelación y panel del dueño.
-- [ ] Diseñar primero las pantallas clave en móvil y escritorio:
-  - [ ] Bienvenida pública del negocio y selección de sede.
-  - [ ] Selección de servicio, profesional, fecha y horario en la sede elegida.
-  - [ ] Datos, revisión y confirmación de reserva con sede y profesional.
-  - [ ] Cancelación con código privado.
+- [x] Revisar el prototipo actual y decidir qué partes se conservan, ajustan o reemplazan.
+- [x] Definir arquitectura de navegación y mapa de pantallas para público, cancelación y panel del dueño.
+- [x] Diseñar primero las pantallas clave en móvil y escritorio:
+  - [x] Bienvenida pública del negocio y selección de sede.
+  - [x] Selección de servicio, profesional, fecha y horario en la sede elegida.
+  - [x] Datos, revisión y confirmación de reserva con sede y profesional.
+  - [x] Cancelación con código privado.
   - [ ] Inicio del panel y agenda del dueño con filtro por sede.
-  - [ ] Configuración del negocio, sedes, servicios, profesionales y horarios.
+  - [x] Configuración del negocio, sedes, servicios, profesionales y horarios.
 - [ ] Definir cómo se muestra una sede en un enlace directo y cómo se permite cambiarla sin perder el recorrido.
 - [ ] Resolver navegación del panel en móvil y escritorio; definir lista cronológica móvil para agenda y vista general multisede.
 - [ ] Acordar identidad visual de Turnow y sistema base: tipografía, color, espaciado, controles, estados y componentes.
@@ -70,15 +77,18 @@
 ## 4. Configurar Supabase Auth y ciclo de vida del negocio
 
 - [ ] Definir quién crea negocios en el piloto: alta manual administrativa o registro de dueño.
-- [ ] Diseñar inicio de sesión, cierre de sesión, recuperación de acceso y expiración de sesión.
-- [ ] Decidir si el acceso será por email y contraseña, enlace mágico u otro método disponible.
-- [ ] Implementar cliente de Supabase Auth del servidor y manejo seguro de cookies/sesiones.
-- [ ] Proteger rutas del panel y verificar membresía del dueño en cada operación privada.
-- [ ] Implementar de forma transaccional la creación o vinculación del negocio, su sede principal y su dueño.
+- [x] Diseñar inicio de sesión, cierre de sesión y recuperación de acceso; queda probar la expiración de sesión en Supabase.
+- [x] Elegir email y contraseña como método inicial.
+- [x] Implementar cliente de Supabase Auth del servidor, cookies SSR y renovación de sesión.
+- [x] Proteger `/dashboard` y resolver la membresía del usuario en el servidor.
+- [x] Verificar Site URL, Redirect URL y proveedor Email en Supabase; el login del dueño funciona en desarrollo.
+- [ ] Configurar SMTP propio y probar el correo de recuperación antes del piloto.
+- [x] Implementar de forma transaccional la creación del negocio, todas sus sedes y su dueño.
+- [x] Crear y vincular una cuenta operativa compartida por sede en desarrollo; queda implementar la interfaz de invitación y revocación, y probar permisos en la agenda real.
 - [ ] Definir flujo para dueño que pierde acceso, negocio suspendido y eliminación/cambio de propietario.
 - [ ] Probar permisos: un dueño no puede consultar ni modificar datos de otro negocio.
 
-**Criterio de cierre:** un dueño puede entrar al panel de forma segura y solo acceder a su negocio.
+**Criterio de cierre:** un dueño y un operador pueden autenticarse con sus cuentas vinculadas; el dueño accede a su negocio y cada operador solo a su sede.
 
 ## 5. Construir el frontend con datos simulados y validarlo
 
@@ -93,32 +103,33 @@
 
 ## 6. Implementar configuración del negocio
 
-- [ ] Crear y editar información pública, identidad y enlaces.
-- [ ] Crear y editar sedes, dirección, contacto, zona horaria y estado; definir la sede principal.
-- [ ] Asignar profesionales a una o más sedes y retirar asignaciones sin romper reservas existentes.
-- [ ] Crear y editar servicios, duración, precio y visibilidad (catálogo compartido entre sedes).
-- [ ] Crear y editar profesionales y servicios que ofrecen.
-- [ ] Configurar horarios de cada sede y horarios independientes por profesional en cada sede, incluidos turnos partidos.
+- [x] Crear y editar textos públicos, contacto, enlaces e identidad; el editor queda oculto para el MVP y la publicación queda para la siguiente etapa.
+- [x] Crear y editar sedes, dirección, contacto y estado; definir la sede principal. La zona horaria del negocio es visible y no editable desde runtime.
+- [x] Asignar profesionales a una o más sedes y retirar asignaciones sin borrar registros existentes.
+- [x] Crear y editar servicios, duración, precio y visibilidad (catálogo compartido entre sedes).
+- [x] Crear y editar profesionales y servicios que ofrecen.
+- [x] Configurar horarios de cada sede y horarios independientes por profesional en cada sede, incluidos turnos partidos.
 - [ ] Configurar excepciones, ausencias, márgenes, intervalos y reglas de reserva/cancelación.
-- [ ] Añadir previsualización y guardado explícito; advertir impactos sobre reservas existentes.
-- [ ] Implementar la página pública por slug con datos persistidos y sedes activas.
-- [ ] Probar permisos y aislamiento por negocio para cada operación.
+- [x] Añadir guardado explícito, estados de éxito y previsualización de textos públicos; el editor queda oculto para el MVP y los impactos sobre reservas se completarán con la agenda.
+- [x] Implementar la página pública por slug con datos persistidos, sedes/servicios/profesionales activos y habilitación explícita del dueño.
+- [ ] Probar permisos y aislamiento por negocio y sede para cada operación, incluyendo parámetros manipulados por el cliente.
 
 **Criterio de cierre:** un dueño puede completar la configuración y publicar una página válida sin editar datos directamente en la base.
 
 ## 7. Implementar agenda y reservas reales (después del diseño)
 
-- [ ] Especificar y probar el motor de disponibilidad antes de conectarlo a la interfaz.
-- [ ] Calcular intervalos por zona horaria de la sede, horario de sede/profesional, servicio, excepciones, ocupaciones, intervalo y márgenes.
-- [ ] Ofrecer disponibilidad por profesional dentro de la sede elegida y unión sin duplicados para “Cualquier profesional”.
-- [ ] Confirmar la reserva en una transacción; volver a validar y asignar profesional al confirmar.
-- [ ] Mantener idempotencia ante doble clic/reintento y preservar snapshots de precio, duración, sede y condiciones.
-- [ ] Crear código privado de cancelación con suficiente entropía, almacenamiento seguro, limitación de intentos y sin filtrarlo en logs.
-- [ ] Implementar cancelación con confirmación explícita y respeto del plazo.
-- [ ] Implementar agenda del dueño con filtro por sede, reservas manuales, reprogramación —incluso entre sedes—, cancelación, bloqueos y estados atendida/ausente.
-- [ ] Probar concurrencia: dos clientes compitiendo por un horario no producen superposición.
-- [ ] Probar que cambios de catálogo u horarios no alteran acuerdos ya confirmados.
-- [ ] Conectar los flujos a la interfaz solo cuando el diseño de estados y errores esté aprobado.
+- [x] Especificar y probar el núcleo puro del motor de disponibilidad antes de conectarlo a la interfaz.
+- [x] Calcular slots por zona horaria, horarios de sede/profesional, excepciones cerradas/personalizadas, servicio, ocupaciones, intervalo, margen, anticipación y horizonte.
+- [x] Ofrecer slots de profesionales elegibles; en la reserva manual del panel, “Cualquier profesional” muestra horas sin duplicar y la confirmación elige el profesional con menor carga del día.
+- [x] Confirmar turnos manuales en una transacción: volver a validar reglas/disponibilidad bajo bloqueo y crear la ocupación de calendario.
+- [x] Preservar snapshots de precio, duración, sede y condiciones en turnos manuales y públicos; el E2E verifica que editar catálogo/reglas no los altera.
+- [x] Hacer idempotente la reserva pública mediante clave y hash de solicitud; el E2E repite exactamente la acción y comprueba que no duplica el turno.
+- [x] Crear código privado aleatorio de alta entropía, hash de búsqueda, cifrado AES-256-GCM para recuperación idempotente y límite persistente de intentos.
+- [x] Implementar consulta/cancelación con confirmación explícita, plazo contractual, estado repetido y liberación de la ocupación.
+- [ ] Completar agenda del dueño con reprogramación entre sedes y bloqueos manuales; la agenda diaria, alta manual, cancelación, reprogramación en sede, pagos y estados atendida/ausente ya existen.
+- [ ] Completar prueba de dos clientes simultáneos con claves de idempotencia distintas; ya se verificaron el reintento idempotente y el rechazo de un slot enviado después de ocuparse.
+- [x] Probar que cambios de catálogo y reglas no alteran snapshots confirmados.
+- [x] Conectar reserva, confirmación y cancelación a la interfaz; E2E cubre escritorio/móvil, estados principales y reserva con “Cualquier profesional”.
 
 **Criterio de cierre:** recorrido de reserva y cancelación completo, probado en navegador y con garantías de base de datos.
 
@@ -141,14 +152,14 @@
 - [ ] Pagos, señas, facturación o cobro automático.
 - [ ] Recursos compartidos, canchas, clases grupales y reservas recurrentes.
 - [ ] Lista de espera, promociones, dominios propios y editor libre.
+- [ ] Reactivar la edición de la página pública con `NEXT_PUBLIC_PAGE_EDITOR_ENABLED=true` y validar textos, contacto, redes e identidad.
 
 ## Orden sugerido inmediato
 
-1. [ ] Cerrar las decisiones de producto que afectan pantallas y reglas, incluida la operación multisede.
-2. [ ] Revisar el prototipo y definir pantallas/recorridos; actualizar `DESIGN.md`.
-3. [ ] Aprobar una primera propuesta visual móvil y escritorio con datos simulados.
-4. [ ] Completar el plan de entorno, despliegue, secretos y Auth.
-5. [ ] Implementar y validar la interfaz antes de conectar la reserva real.
-6. [ ] Implementar configuración del negocio y sus sedes; después, disponibilidad y reservas.
+1. [x] Crear y confirmar las cuentas Auth operativas por sede y vincular sus membresías.
+2. [x] Confirmar el E2E actualizado de configuración y agenda contra Supabase: alta por disponibilidad, turno persistido, cobro, asistencia y responsive.
+3. [x] Implementar reserva pública idempotente y cancelación con código privado sobre el motor compartido; E2E completo contra Supabase.
+4. [x] Añadir publicación por slug con habilitación explícita del dueño; el negocio real sigue deshabilitado hasta su aprobación.
+5. [ ] Completar SMTP, recuperación de contraseña, despliegue y operación del piloto.
 
 > **Regla de avance:** no empezar el motor ni conectar reservas a producción hasta que los flujos y estados de interfaz hayan sido definidos y revisados. Las pruebas automatizadas de lógica pueden prepararse antes sin reemplazar la validación del diseño.

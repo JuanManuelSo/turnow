@@ -6,6 +6,10 @@
 - `0001_calendar_integrity.sql`: exclusiones GiST, snapshots contractuales inmutables, triggers de coherencia, actualización de timestamps y permisos.
 - `0002_revoke_business_update.sql`: revoca la escritura de `businesses.updated_at` al runtime; la agenda se serializa con bloqueos asesorados.
 - `0003_multi_location_support.sql`: agrega sedes y asignaciones profesional-sede; vincula agendas, reservas y ocupaciones a una sede, y migra datos existentes a una sede principal.
+- `0004_location_operator_access.sql`: permite membresía `location_operator` con acceso ligado a una sola sede; conserva un dueño por negocio y limita a un operador por sede.
+- `0005_location_operator_audit.sql`: registra `location_operator` como actor en el historial de eventos.
+- `0006_overjoyed_prowler.sql`: agrega pagos manuales a las reservas.
+- `0007_public_booking_rate_limits.sql`: agrega contadores persistentes para limitar intentos públicos de reserva, consulta y cancelación.
 - `meta/`: snapshots y registro de Drizzle Kit; versionar junto con el SQL.
 
 `auth.users` pertenece a Supabase. Se referencia mediante FK, pero estas migraciones no crean ni modifican esa tabla.
@@ -61,6 +65,8 @@ ALTER ROLE turnow_app PASSWORD '<contraseña-generada>';
 La contraseña se genera y guarda únicamente en `.env.local`. `npm run db:ping` rechaza la conexión si `DATABASE_URL` usa `postgres` o un rol privilegiado.
 
 El alta de negocios/membresías usa un flujo administrativo separado: runtime no puede crear propietarios ni modificar el estado comercial del negocio. Los eventos y solicitudes idempotentes solo admiten lectura e inserción para runtime.
+
+Para el alta inicial local del dueño y del negocio, `npm run setup:business` usa `DATABASE_MIGRATION_URL`, verifica permisos y Auth user, pide confirmación del resumen y escribe negocio, sedes, membresía, configuración y página en una única transacción. No uses `DATABASE_URL` para esta operación ni ejecutes el script en producción sin revisar primero el proyecto destino.
 
 ## Evolución
 

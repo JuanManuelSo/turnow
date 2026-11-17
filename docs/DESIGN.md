@@ -254,28 +254,19 @@ No mostrar éxito antes de la confirmación del servidor. Si falla una notificac
 
 ### Navegación
 
-Propuesta inicial:
+El panel incluye **Agenda**, **Sedes**, **Servicios**, **Profesionales**, **Horarios**, **Página pública** y **Configuración**. La agenda diaria es la portada operativa; si falta configuración, se muestra una indicación y acceso al paso correspondiente, sin reemplazar el calendario.
 
-- Inicio.
-- Agenda.
-- Servicios.
-- Profesionales.
-- Página pública.
-- Configuración.
+> **MVP (16/11/2026):** **Página pública** queda oculta para el piloto con `NEXT_PUBLIC_PAGE_EDITOR_ENABLED=false`; la navegación muestra seis secciones y el editor se retoma después.
 
-Las comunicaciones tendrán una sección cuando se implemente ese módulo. Ocultar funciones no disponibles evita promesas visuales que el producto todavía no cumple.
+En escritorio hay un rail lateral oscuro y sobrio. En móvil las seis secciones del MVP se convierten en una grilla compacta, sin desplazamiento horizontal. Las acciones y controles operativos mantienen áreas de toque de 44 px como mínimo.
 
-En escritorio: navegación lateral sobria. En móvil: acceso rápido a las tareas frecuentes y menú compacto para el resto, a validar en prototipo.
+### Configuración
 
-### Inicio
+La configuración mantiene el índice numerado de puesta en marcha, muestra el progreso y el primer paso pendiente, y enlaza cada fila a su sección; si falta un horario, abre directamente la primera sede sin cobertura.
 
-- Priorizar agenda de hoy y próximos turnos.
-- Permitir filtrar por sede y ofrecer una vista general del negocio; la sede de cada turno debe ser visible.
-- Métricas pequeñas con período explícito.
-- Acceso a **Nuevo turno** y **Copiar enlace de reservas**.
-- Estados vacíos que orienten a completar la configuración o compartir el enlace.
+El índice usa numeración editorial, texto de estado y líneas capilares. Los textos de la página pública se distinguen de su publicación: se pueden guardar ahora, pero no se promete que el enlace esté activo hasta que existan agenda y reservas reales.
 
-Los gráficos se incorporan cuando responden una pregunta concreta del dueño.
+Los gráficos solo se incorporan cuando responden una pregunta concreta del dueño.
 
 ### Agenda
 
@@ -299,6 +290,14 @@ Crear, reprogramar, cancelar y bloquear deben tener entradas visibles. La intera
 - Ante un fallo de guardado, conservar los cambios ingresados.
 - Pedir confirmación explícita para acciones destructivas o cambios con impacto importante.
 - Evitar confirmaciones redundantes en acciones rutinarias reversibles.
+
+### Configuración ya implementada
+
+- Sedes, catálogo, profesionales, asignaciones y horarios de sede/profesional se administran en secciones separadas.
+- Horarios permite tramos partidos. En móvil, la lista de ámbitos aparece antes del editor al entrar; tras elegir uno, el editor toma prioridad.
+- Las tabs de sede informan **Con horario** o **Sin horario**.
+- Los registros se desactivan en vez de borrarse para no comprometer snapshots de reservas cuando se conecte la agenda.
+- La zona horaria se comunica con una etiqueta humana y conserva el identificador técnico como información secundaria.
 
 ## 9. Editor de identidad y página pública
 

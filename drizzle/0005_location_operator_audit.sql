@@ -1,0 +1,2 @@
+ALTER TABLE "app"."appointment_events" DROP CONSTRAINT "appointment_events_actor_check";--> statement-breakpoint
+ALTER TABLE "app"."appointment_events" ADD CONSTRAINT "appointment_events_actor_check" CHECK ("app"."appointment_events"."actor_type" in ('customer', 'owner', 'location_operator', 'platform', 'system'));

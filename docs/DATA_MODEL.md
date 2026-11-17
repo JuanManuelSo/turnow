@@ -99,13 +99,16 @@ La agenda del negocio se serializa con un bloqueo transaccional asesorado (`pg_a
 
 ### `business_members`
 
-- `business_id`, `user_id` (FK a `auth.users.id`), `role`, fechas.
-- PK `(business_id, user_id)`.
-- Rol inicial: `owner`.
-- Índice único parcial por `business_id` donde `role = 'owner'`: un dueño por negocio en el MVP.
-- Un usuario puede administrar varios negocios mediante distintas membresías.
+- `business_id`, `user_id` (FK a `auth.users.id`), `role`, `location_id` nullable, fechas.
+- PK `(business_id, user_id)`: la cuenta operativa representa una sola sede por negocio.
+- Roles: `owner` con `location_id IS NULL`, o `location_operator` con `location_id` obligatorio y FK compuesta a una sede del mismo negocio.
+- Índice único parcial por negocio para un dueño y otro por `(business_id, location_id)` para un operador por sede.
+- El operador es una credencial compartida del local, no la cuenta personal de un profesional. Puede atribuir el servicio a un profesional desde un selector limitado a la sede.
+- La membresía y el `actor_user_id` de cada evento/cobro identifican la cuenta que efectuó la operación; con credenciales compartidas no se identifica cuál persona física la usó.
+- Las operaciones de ese usuario se autorizan siempre con la sede de la membresía; no se toma el `location_id` enviado por el navegador como permiso.
+- Un usuario puede administrar varios negocios mediante distintas membresías, pero tiene una sola membresía por negocio.
 - Borrar un usuario propietario requiere resolver primero la propiedad; no eliminar membresías accidentalmente por cascada.
-- La creación del negocio y de su dueño ocurre en una transacción de alta. El índice asegura como máximo un dueño; el flujo de alta asegura que exista uno.
+- La creación del negocio, sede principal y dueño ocurre en una transacción de alta. El índice asegura como máximo un dueño; el flujo de alta asegura que exista uno. Cada sede puede recibir su operador mediante invitación separada.
 
 ### `business_settings`
 
@@ -266,7 +269,7 @@ Las modificaciones relevantes incrementan `version`. Cambiar precio o nombre en 
 ### Transiciones
 
 - `confirmed → cancelled`: cliente dentro del plazo, o dueño autorizado.
-- `confirmed → attended / no_show`: dueño; no se registra ausencia antes del inicio del turno.
+- `confirmed → attended / no_show`: dueño u operador de la sede; no se registra ausencia antes del inicio del turno.
 - No se marca asistencia automáticamente por el paso del tiempo.
 - Correcciones administrativas se auditan y vuelven a validar restricciones.
 - No se reactiva una cancelación desde la página pública.
@@ -345,12 +348,24 @@ Con la misma clave y mismos datos se devuelve la misma reserva, sin crear otra. 
 ### `appointment_events`
 
 - `id`, `business_id`, `appointment_id`, `event_type`, `created_at`.
-- `actor_type`: `customer`, `owner`, `platform`, `system`.
+- `actor_type`: `customer`, `owner`, `location_operator`, `platform`, `system`.
 - `actor_user_id` nullable; usuario de Auth cuando corresponda.
 - `appointment_version`, `changes` JSON validado y acotado.
 - FK compuesta a reserva.
 
 Eventos: creación, cancelación, reprogramación, cambio de estado y corrección administrativa. `changes` registra datos operativos necesarios, como horario anterior y nuevo; no almacena secretos ni copias completas de datos personales. El rol runtime puede insertar y consultar eventos, pero no modificarlos ni borrarlos.
+
+### `appointment_payments`
+
+- `id`, `business_id`, `appointment_id`, `amount_minor`, `currency`, `method`, `recorded_at`.
+- Medios manuales: `cash`, `transfer`, `card` y `other`; no se conecta una pasarela en el MVP.
+- `recorded_by_user_id` identifica la cuenta operativa o el dueño que registró el asiento.
+- `note` es opcional y acotada; el importe es positivo y se conserva en unidades menores enteras.
+- Una corrección marca el asiento previo con `reversed_at` y motivo, y opcionalmente agrega un nuevo asiento con `corrected_payment_id` (importe corregido cero revierte sin reemplazo). No se borra ni se edita el importe histórico.
+- FK compuesta a la reserva y FK compuesta autorreferente para mantener el negocio del asiento corregido.
+- El rol runtime puede consultar, insertar y revertir asientos; no puede eliminarlos.
+
+El saldo mostrado es el precio congelado de la reserva menos la suma de asientos no revertidos. Al registrar un cobro no se permite superar el saldo; si el precio no está definido, se permite registrar el importe sin saldo calculado.
 
 ## 10. Transacciones y responsabilidades
 
@@ -384,7 +399,7 @@ Cambiar reglas que afecten reservas existentes requiere mostrar el impacto y res
 
 Además de PK, claves únicas e índices GiST:
 
-- `business_members (user_id, business_id)` para negocios del dueño.
+- `business_members (user_id, business_id, role, location_id)` para resolver acceso del dueño y operador por sede.
 - `services (business_id, is_active, sort_order)`.
 - `professionals (business_id, is_active, sort_order)`.
 - `professional_services (business_id, service_id, is_active, professional_id)`.

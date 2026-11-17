@@ -1,48 +1,272 @@
-'use client';
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Copy, ExternalLink, Instagram, MapPin, Phone } from 'lucide-react';
-import { Booking, Identity, dateLabel, locationAddress, locations, money, services } from '@/modules/prototype';
-import { Brand, Button } from './ui';
-import { Summary } from './summary';
-import { BookingFlow } from './booking-flow';
+"use client";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Copy,
+  ExternalLink,
+  MapPin,
+} from "lucide-react";
+import {
+  Booking,
+  Identity,
+  dateLabel,
+  locationAddress,
+  locationMapUrl,
+} from "@/modules/prototype";
+import { Button, ConfirmationDialog, FormField, Input } from "./ui";
+import { Summary } from "./summary";
+import { BookingFlow } from "./booking-flow";
+import {
+  StorefrontFooter,
+  StorefrontHeader,
+  StorefrontHome,
+} from "@/features/storefront/storefront-home";
 
-type Props = { identity: Identity; setIdentity: (i: Identity) => void; bookings: Booking[]; addBooking: (b: Booking) => void; cancel: (id: string) => void; notify: (s: string) => void; copy: (s: string) => void; empty: boolean; clearEmpty: () => void; conflict: boolean; clearConflict: () => void };
+type Props = {
+  identity: Identity;
+  bookings: Booking[];
+  addBooking: (b: Booking) => void;
+  cancel: (id: string) => void;
+  copy: (s: string) => void;
+  empty: boolean;
+  clearEmpty: () => void;
+  conflict: boolean;
+  clearConflict: () => void;
+  openPanel: () => void;
+};
 export function PublicSite(props: Props) {
-  const { identity, setIdentity, bookings, cancel, notify, copy } = props;
-  const [view, setView] = useState<'home' | 'book' | 'success' | 'cancel'>('home');
-  const [initialService, setInitialService] = useState('corte');
+  const { identity, bookings, cancel, copy } = props;
+  const [view, setView] = useState<"home" | "book" | "success" | "cancel">(
+    "home",
+  );
+  const [initialService, setInitialService] = useState("corte");
   const [result, setResult] = useState<Booking | null>(null);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [found, setFound] = useState<Booking | null>(null);
+  const [confirmingCancellation, setConfirmingCancellation] = useState(false);
   const [cancelled, setCancelled] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { heading.current?.focus(); window.scrollTo(0, 0); }, [view, cancelled]);
-  function navigate(next: typeof view) { setView(next); setError(''); setFound(null); setCancelled(false); }
-  function start(service = 'corte') { setInitialService(service); navigate('book'); }
-  return <>
-    <header className="public-header"><button className="brand-home" aria-label="Ir a la bienvenida" onClick={() => navigate('home')}><Brand name={identity.name} /></button><span className="header-caption">Peluquería & barbería · Rosario</span><button className="header-cancel" onClick={() => navigate('cancel')}>Cancelar turno</button></header>
-    <main id="main" className="public-main">
-      {view === 'home' && <>
-        <section className="welcome">
-          <div className="welcome-copy">
-            <h1 ref={heading} tabIndex={-1}>Tu estilo.<br />Tu momento.</h1>
-            <p className="welcome-description">{identity.description}</p>
-            <div className="welcome-actions"><Button onClick={() => start()}>Reservar turno<ArrowRight size={19} /></Button><button className="text-link" onClick={() => navigate('cancel')}>Cancelar turno</button></div>
-            <p className="quiet-note"><CheckCircle2 size={16} />Sin cuenta. Elegís, reservás y listo.</p>
-          </div>
-          <aside className="visit-panel">
-            <div className="visit-info"><MapPin size={23} /><div><h2>Encontrá tu sede<br />en Rosario.</h2><p>{locations.map(place => <span className="visit-location" key={place.id}>{place.address}</span>)}Rosario, Santa Fe</p></div></div>
-            <div className="visit-hours"><Clock3 size={20} /><div><strong>De lunes a sábado</strong><p>9:00–13:00 y 14:00–18:00</p><small>Horarios del local. Consultá disponibilidad al reservar.</small></div></div>
-            <div className="contact-links"><button onClick={() => notify('Contacto ficticio: 341 555 0100. No se envían mensajes desde este prototipo.')}><Phone size={17} />Contactar</button><button onClick={() => notify('Instagram ficticio: @estudionorte. Enlace simulado.')}><Instagram size={17} />Instagram<ExternalLink size={14} /></button></div>
-          </aside>
-        </section>
-        <section className="service-preview"><div><h2>Un buen corte empieza<br />con un momento para vos.</h2><p>Elegí lo que necesitás. Nosotros nos ocupamos del resto.</p></div><div className="service-preview-list">{services.map(s => <button key={s.id} onClick={() => start(s.id)}><span><strong>{s.name}</strong><small>{s.duration} min</small></span><span>{money(s.price)}<ArrowRight size={17} /></span></button>)}</div></section>
-        <div className="palette-demo"><span>Una estructura, distintas identidades</span>{(['mineral', 'botanica'] as const).map(p => <button key={p} aria-pressed={identity.palette === p} onClick={() => setIdentity({ ...identity, palette: p })}><i className={`swatch ${p === 'mineral' ? 'blue' : 'green'}`} />{p === 'mineral' ? 'Mineral' : 'Botánica'}{identity.palette === p && <Check size={14} />}</button>)}</div>
-      </>}
-      {view === 'book' && <BookingFlow {...props} initialService={initialService} back={() => navigate('home')} onSuccess={b => { props.addBooking(b); setResult(b); setView('success'); }} />}
-       {view === 'success' && result && <section className="result-page"><span className="result-icon"><Check size={30} /></span><h1 ref={heading} tabIndex={-1}>Tu turno está confirmado.</h1><p>Ya tenés un momento para vos. Te esperamos.</p><div className="result-date">{dateLabel(result.date)}<strong>{result.time} h</strong></div><Summary {...result} /><div className="private-code"><h2>Guardá tu código privado</h2><p>Lo vas a necesitar si querés cancelar. No lo compartas.</p><code>{result.code}</code><Button variant="secondary" onClick={() => copy(result.code)}>Copiar código<Copy size={16} /></Button></div><p className="quiet-note"><MapPin size={16} />{locationAddress(result.location)}, Rosario</p><Button variant="text" onClick={() => navigate('home')}>Volver al estudio<ArrowRight size={16} /></Button><small className="simulation-note">Confirmación simulada. No enviamos WhatsApp ni email.</small></section>}
-      {view === 'cancel' && <section className="cancel-page"><button className="back-link" onClick={() => navigate('home')}><ArrowLeft size={16} />Volver al estudio</button>{cancelled ? <><span className="result-icon"><Check size={28} /></span><h1 ref={heading} tabIndex={-1}>Tu turno fue cancelado.</h1><p>El horario vuelve a estar disponible. Cuando quieras, te esperamos de nuevo.</p><Button onClick={() => start()}>Reservar otro turno<ArrowRight size={17} /></Button></> : <><h1 ref={heading} tabIndex={-1}>¿Cambiaron tus planes?</h1><p>Ingresá el código privado de tu reserva. Vas a poder revisar el turno antes de cancelarlo.</p><form onSubmit={e => { e.preventDefault(); setError(''); const b = bookings.find(b => b.code.toUpperCase() === code.trim().toUpperCase()); setFound(b || null); if (!b) setError('No encontramos ese código. Revisá que esté completo y volvé a intentar.'); }}><label>Código privado<input value={code} onChange={e => { setCode(e.target.value); setFound(null); setError(''); }} placeholder="Ej. NORTE-7K9P-2M4X" autoCapitalize="characters" spellCheck={false} required aria-invalid={!!error} aria-describedby={error ? 'code-error' : undefined} /></label><Button type="submit" variant="secondary">Buscar turno<ArrowRight size={16} /></Button></form>{error && <p id="code-error" role="alert" className="error">{error}</p>}{found && <div className="cancel-summary">{found.status === 'Cancelada' ? <p role="status">Este turno ya está cancelado. No necesitás hacer nada más.</p> : <><h2>Encontramos tu turno</h2><Summary {...found} /><p>Al cancelar, liberás este horario. Esta acción no se puede deshacer.</p><Button variant="danger" onClick={() => { cancel(found.id); setCancelled(true); }}>Cancelar este turno</Button></>}</div>}<p className="help-copy">¿No encontrás tu código? Contactá al estudio al <strong>341 555 0100</strong> (contacto ficticio).</p></>}</section>}
-    </main><footer className="public-footer"><span>{identity.name} · Rosario</span><span>Reservas simples con <strong>turnow.</strong></span></footer>
-  </>;
+  useEffect(() => {
+    heading.current?.focus();
+    window.scrollTo(0, 0);
+  }, [view, cancelled]);
+  function navigate(next: typeof view) {
+    setView(next);
+    setError("");
+    setFound(null);
+    setConfirmingCancellation(false);
+    setCancelled(false);
+  }
+  function start(service = "corte") {
+    setInitialService(service);
+    navigate("book");
+  }
+  return (
+    <>
+      {view !== "book" && (
+        <StorefrontHeader
+          name={identity.name}
+          onCancel={() => navigate("cancel")}
+        />
+      )}
+      <main id="main" className="public-main mx-auto w-full max-w-[1440px] px-[clamp(20px,5vw,72px)] max-[600px]:px-5">
+        {view === "home" && (
+          <StorefrontHome
+            identity={identity}
+            onBook={(service) => start(service)}
+            onCancel={() => navigate("cancel")}
+            headingRef={heading}
+          />
+        )}
+        {view === "book" && (
+          <BookingFlow
+            bookings={bookings}
+            initialService={initialService}
+            back={() => navigate("home")}
+            onSuccess={(b) => {
+              props.addBooking(b);
+              setResult(b);
+              setView("success");
+            }}
+            empty={props.empty}
+            clearEmpty={props.clearEmpty}
+            conflict={props.conflict}
+            clearConflict={props.clearConflict}
+          />
+        )}
+        {view === "success" && result && (
+          <section className="result-page mx-auto my-8 grid w-full max-w-[680px] justify-items-start gap-3.5 max-[600px]:my-4 max-[600px]:gap-3">
+            <span className="result-icon grid size-11 place-items-center rounded-full bg-[#eaf3ed] text-success max-[600px]:size-9">
+              <Check size={30} />
+            </span>
+            <h1 className="text-[clamp(1.8rem,5vw,3.25rem)] leading-[1.04] tracking-[-.055em]" ref={heading} tabIndex={-1}>
+              Tu turno está confirmado.
+            </h1>
+            <p className="text-sm leading-relaxed">Ya tenés un momento para vos. Te esperamos.</p>
+            <div className="result-date flex w-full items-center justify-between gap-3 rounded-lg bg-surface-muted px-5 py-3.5 text-sm font-bold capitalize max-[600px]:px-4 max-[600px]:py-3">
+              <span>{dateLabel(result.date)}</span>
+              <strong className="shrink-0 text-xl tabular-nums max-[600px]:text-lg">{result.time} h</strong>
+            </div>
+            <div className="private-code grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 rounded-lg border border-[#c9d8e8] bg-surface p-4 max-[600px]:grid-cols-1 max-[600px]:gap-2.5 max-[600px]:p-3.5">
+              <div className="min-w-0">
+                <h2 className="text-base font-bold leading-snug">Guardá tu código de cancelación</h2>
+                <p className="mt-1 text-xs leading-relaxed">Lo necesitás para cancelar este turno. No lo compartas.</p>
+              </div>
+              <code className="col-span-1 row-start-2 block w-full rounded bg-surface-muted px-3 py-2.5 font-mono text-sm font-bold tracking-wide text-foreground [overflow-wrap:anywhere] max-[600px]:text-center">{result.code}</code>
+              <Button variant="secondary" className="row-span-2 min-h-11 whitespace-nowrap max-[600px]:row-span-1 max-[600px]:w-full" onClick={() => copy(result.code)}>
+                Copiar código
+                <Copy size={16} />
+              </Button>
+            </div>
+            <div className="result-booking-details w-full rounded-lg border border-border bg-surface px-4 py-1 max-[600px]:px-3.5">
+              <Summary {...result} />
+            </div>
+            <p className="quiet-note flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin size={16} />
+              <a
+                className="confirmation-location inline-flex min-h-11 items-center gap-2 font-bold text-brand underline underline-offset-4"
+                href={locationMapUrl(locationAddress(result.location))}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Ver ${locationAddress(result.location)} en Google Maps (abre una pestaña nueva)`}
+              >
+                {locationAddress(result.location)}, Rosario
+                <ExternalLink size={14} aria-hidden="true" />
+              </a>
+            </p>
+            <Button variant="text" onClick={() => navigate("home")}>
+              Volver al estudio
+              <ArrowRight size={16} />
+            </Button>
+            <small className="simulation-note block text-xs text-muted-foreground">
+              Confirmación simulada. No enviamos WhatsApp ni email.
+            </small>
+          </section>
+        )}
+        {view === "cancel" && (
+          <section className="cancel-page mx-auto my-8 grid w-full max-w-[620px] content-start gap-5">
+            <button className="back-link flex min-h-11 items-center gap-2 text-sm text-muted-foreground" onClick={() => navigate("home")}>
+              <ArrowLeft size={16} />
+              Volver al estudio
+            </button>
+            {cancelled ? (
+              <>
+                <span className="result-icon grid size-14 place-items-center rounded-full bg-[#eaf3ed] text-success">
+                  <Check size={28} />
+                </span>
+                <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[1.05] tracking-[-.05em]" ref={heading} tabIndex={-1}>
+                  Tu turno fue cancelado.
+                </h1>
+                <p className="text-base leading-relaxed">
+                  El horario vuelve a estar disponible. Cuando quieras, te
+                  esperamos de nuevo.
+                </p>
+                <Button onClick={() => start()}>
+                  Reservar otro turno
+                  <ArrowRight size={17} />
+                </Button>
+              </>
+            ) : (
+              <>
+                <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[1.05] tracking-[-.05em]" ref={heading} tabIndex={-1}>
+                  ¿Cambiaron tus planes?
+                </h1>
+                <p className="text-base leading-relaxed">
+                  Ingresá el código privado de tu reserva. Vas a poder revisar
+                  el turno antes de cancelarlo.
+                </p>
+                <form
+                  className="grid gap-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setError("");
+                    const b = bookings.find(
+                      (b) => b.code.toUpperCase() === code.trim().toUpperCase(),
+                    );
+                    setFound(b || null);
+                    if (!b)
+                      setError(
+                        "No encontramos ese código. Revisá que esté completo y volvé a intentar.",
+                      );
+                  }}
+                >
+                  <FormField
+                    label="Código privado"
+                    htmlFor="cancel-code"
+                    error={error || undefined}
+                  >
+                    <Input
+                      id="cancel-code"
+                      value={code}
+                      onChange={(e) => {
+                        setCode(e.target.value);
+                        setFound(null);
+                        setError("");
+                      }}
+                      placeholder="Ej. HOMBRES-7K9P-2M4X"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      required
+                      aria-invalid={!!error}
+                      aria-describedby={error ? "cancel-code-error" : undefined}
+                    />
+                  </FormField>
+                  <Button type="submit" variant="secondary">
+                    Buscar turno
+                    <ArrowRight size={16} />
+                  </Button>
+                </form>
+                {found && (
+                  <div className="cancel-summary grid gap-4 rounded-lg border border-border bg-surface p-5 max-[600px]:p-4">
+                    {found.status === "Cancelada" ? (
+                      <p role="status">
+                        Este turno ya está cancelado. No necesitás hacer nada
+                        más.
+                      </p>
+                    ) : (
+                      <>
+                        <h2 className="text-lg font-bold">Encontramos tu turno</h2>
+                        <Summary {...found} />
+                          <p className="text-sm leading-relaxed">
+                          Al cancelar, liberás este horario. Esta acción no se
+                          puede deshacer.
+                        </p>
+                        <Button
+                          variant="danger"
+                          onClick={() => setConfirmingCancellation(true)}
+                        >
+                          Cancelar este turno
+                        </Button>
+                        {confirmingCancellation && (
+                          <ConfirmationDialog
+                            date={found.date}
+                            time={found.time}
+                            location={locationAddress(found.location)}
+                            onCancel={() => setConfirmingCancellation(false)}
+                            onConfirm={() => {
+                              cancel(found.id);
+                              setConfirmingCancellation(false);
+                              setCancelled(true);
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                <p className="help-copy text-sm text-muted-foreground">
+                  ¿No encontrás tu código? Contactá al estudio para recibir
+                  ayuda.
+                </p>
+              </>
+            )}
+          </section>
+        )}
+      </main>
+      <StorefrontFooter name={identity.name} onOpenPanel={props.openPanel} />
+    </>
+  );
 }

@@ -29,6 +29,34 @@
       "when": 1794608689827,
       "tag": "0003_multi_location_support",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794690521391,
+      "tag": "0004_location_operator_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794690587699,
+      "tag": "0005_location_operator_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794700536211,
+      "tag": "0006_overjoyed_prowler",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794843745823,
+      "tag": "0007_public_booking_rate_limits",
+      "breakpoints": true
     }
   ]
 }

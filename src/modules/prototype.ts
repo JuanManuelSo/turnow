@@ -1,8 +1,19 @@
-export const services = [
-  { id: 'corte', name: 'Corte y estilo', duration: 45, price: 18000, description: 'Un corte pensado para vos y tu día a día.' },
-  { id: 'barba', name: 'Perfilado de barba', duration: 30, price: 10000, description: 'Forma, detalle y terminación.' },
-  { id: 'combo', name: 'Corte + barba', duration: 60, price: 25000, description: 'Tu rutina completa, en un solo turno.' },
-];
+import { services, type LocationId } from '@/config/business';
+export { initialIdentity, locationAddress, locationMapUrl, locations, services } from '@/config/business';
+export type { Identity, LocationId } from '@/config/business';
+const rosarioDate = () => {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find(value => value.type === type)!.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+export const baseDate = rosarioDate();
+export function addDays(date: string, count: number) { const d = new Date(date + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + count); return d.toISOString().slice(0, 10); }
+export const initialDate = new Date(baseDate + 'T12:00:00Z').getUTCDay() === 0 ? addDays(baseDate, 1) : baseDate;
 export const team = [
   { id: 'julia', name: 'Julia Moreno', initials: 'JM', role: 'Cortes y estilo', location: 'urquiza' },
   { id: 'tomas', name: 'Tomás Ríos', initials: 'TR', role: 'Cortes y barbería', location: 'urquiza' },
@@ -12,28 +23,17 @@ export const team = [
   { id: 'renata', name: 'Renata Funes', initials: 'RF', role: 'Cortes y estilo', location: 'roca' },
   { id: 'ivan', name: 'Iván Cabrera', initials: 'IC', role: 'Cortes y barbería', location: 'roca' },
 ];
-export const locations = [
-  { id: 'urquiza', address: 'Urquiza 1526' },
-  { id: 'febrero', address: '3 de Febrero 2464' },
-  { id: 'roca', address: 'Presidente Roca 274' },
-] as const;
-export type LocationId = typeof locations[number]['id'];
-export const locationAddress = (id: LocationId) => locations.find(location => location.id === id)?.address ?? locations[0].address;
-export type Identity = { name: string; description: string; palette: 'mineral' | 'botanica'; font: 'manrope' | 'system' };
-export const initialIdentity: Identity = { name: 'Estudio Norte', description: 'Un espacio para encontrar tu estilo. Cortes cuidados, buena conversación y tiempo para vos.', palette: 'mineral', font: 'manrope' };
 export type Booking = { id: string; code: string; name: string; phone: string; service: string; professional: string; location: LocationId; date: string; time: string; status: 'Confirmada' | 'Cancelada' };
-export const baseDate = '2026-11-12';
 export const initialBookings: Booking[] = [
-  { id: 'a1', code: 'NORTE-7K9P-2M4X', name: 'Martina López', phone: '341 555 0198', service: 'corte', professional: 'julia', location: 'urquiza', date: baseDate, time: '09:00', status: 'Confirmada' },
-  { id: 'a2', code: 'NORTE-8B3F-6J2Q', name: 'Nicolás Ferrero', phone: '341 555 0236', service: 'combo', professional: 'tomas', location: 'urquiza', date: baseDate, time: '09:30', status: 'Confirmada' },
-  { id: 'a3', code: 'NORTE-5D8L-3R7S', name: 'Valentina Ruiz', phone: '341 555 0134', service: 'corte', professional: 'lucia', location: 'urquiza', date: baseDate, time: '10:00', status: 'Confirmada' },
-  { id: 'a4', code: 'NORTE-4A9C-8E2H', name: 'Santiago Díaz', phone: '341 555 0456', service: 'corte', professional: 'julia', location: 'urquiza', date: baseDate, time: '11:00', status: 'Confirmada' },
-  { id: 'a5', code: 'NORTE-3W6N-9V2Z', name: 'Camila Acosta', phone: '341 555 0179', service: 'corte', professional: 'lucia', location: 'urquiza', date: baseDate, time: '14:30', status: 'Confirmada' },
-  { id: 'a6', code: 'NORTE-2H7K-4P8T', name: 'Joaquín Pérez', phone: '341 555 0248', service: 'barba', professional: 'tomas', location: 'urquiza', date: baseDate, time: '16:00', status: 'Confirmada' },
+  { id: 'a1', code: 'HOMBRES-7K9P-2M4X', name: 'Martina López', phone: '341 555 0198', service: 'corte', professional: 'julia', location: 'urquiza', date: initialDate, time: '09:00', status: 'Confirmada' },
+  { id: 'a2', code: 'HOMBRES-8B3F-6J2Q', name: 'Nicolás Ferrero', phone: '341 555 0236', service: 'combo', professional: 'tomas', location: 'urquiza', date: initialDate, time: '09:30', status: 'Confirmada' },
+  { id: 'a3', code: 'HOMBRES-5D8L-3R7S', name: 'Valentina Ruiz', phone: '341 555 0134', service: 'corte', professional: 'lucia', location: 'urquiza', date: initialDate, time: '10:00', status: 'Confirmada' },
+  { id: 'a4', code: 'HOMBRES-4A9C-8E2H', name: 'Santiago Díaz', phone: '341 555 0456', service: 'corte', professional: 'julia', location: 'urquiza', date: initialDate, time: '11:00', status: 'Confirmada' },
+  { id: 'a5', code: 'HOMBRES-3W6N-9V2Z', name: 'Camila Acosta', phone: '341 555 0179', service: 'corte', professional: 'lucia', location: 'urquiza', date: initialDate, time: '14:30', status: 'Confirmada' },
+  { id: 'a6', code: 'HOMBRES-2H7K-4P8T', name: 'Joaquín Pérez', phone: '341 555 0248', service: 'barba', professional: 'tomas', location: 'urquiza', date: initialDate, time: '16:00', status: 'Confirmada' },
 ];
 export const money = (value: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
 export const dateLabel = (date: string, short = false) => new Intl.DateTimeFormat('es-AR', { weekday: short ? 'short' : 'long', day: 'numeric', month: short ? 'short' : 'long', timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'));
-export function addDays(date: string, count: number) { const d = new Date(date + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + count); return d.toISOString().slice(0, 10); }
 export const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 export function eligible(service: string, location?: LocationId) { return team.filter(p => (service === 'corte' || p.id !== 'julia') && (!location || p.location === location)); }
 export function validSlot(date: string, time: string, service: string) {

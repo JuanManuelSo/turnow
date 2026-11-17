@@ -59,13 +59,16 @@ export const locations = app.table('locations', {
 export const businessMembers = app.table('business_members', {
   businessId: businessId(),
   userId: uuid('user_id').notNull().references(() => authUsers.id, { onDelete: 'restrict' }),
-  role: text('role', { enum: ['owner'] }).default('owner').notNull(),
+  locationId: uuid('location_id'),
+  role: text('role', { enum: ['owner', 'location_operator'] }).default('owner').notNull(),
   ...timestamps(),
 }, (t) => [
   primaryKey({ columns: [t.businessId, t.userId] }),
   uniqueIndex('business_members_owner_unique').on(t.businessId).where(sql`${t.role} = 'owner'`),
+  uniqueIndex('business_members_location_operator_unique').on(t.businessId, t.locationId).where(sql`${t.role} = 'location_operator'`),
   index('business_members_user_idx').on(t.userId, t.businessId),
-  check('business_members_role_check', sql`${t.role} = 'owner'`),
+  foreignKey({ name: 'business_members_location_fk', columns: [t.businessId, t.locationId], foreignColumns: [locations.businessId, locations.id] }).onDelete('restrict'),
+  check('business_members_role_scope_check', sql`(${t.role} = 'owner' and ${t.locationId} is null) or (${t.role} = 'location_operator' and ${t.locationId} is not null)`),
 ]);
 
 export const businessSettings = app.table('business_settings', {
@@ -83,6 +86,19 @@ export const businessSettings = app.table('business_settings', {
   check('business_settings_interval_check', sql`${t.slotIntervalMinutes} > 0 and ${t.slotIntervalMinutes} <= 1440`),
   check('business_settings_limits_check', sql`${t.bufferAfterMinutes} >= 0 and ${t.minBookingNoticeMinutes} >= 0 and ${t.bookingHorizonDays} > 0 and ${t.cancellationNoticeMinutes} >= 0`),
   check('business_settings_version_check', sql`${t.version} > 0`),
+]);
+
+export const publicRateLimits = app.table('public_rate_limits', {
+  businessId: businessId(),
+  scope: text('scope').notNull(),
+  identifierHash: text('identifier_hash').notNull(),
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+  attempts: integer('attempts').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.businessId, t.scope, t.identifierHash, t.windowStart] }),
+  check('public_rate_limits_scope_check', sql`${t.scope} in ('booking', 'lookup', 'cancel')`),
+  check('public_rate_limits_identifier_check', sql`${t.identifierHash} ~ '^[0-9a-f]{64}$'`),
+  check('public_rate_limits_attempts_check', sql`${t.attempts} > 0`),
 ]);
 
 export type PageTheme = {
@@ -345,7 +361,7 @@ export const appointmentEvents = app.table('appointment_events', {
   id: id(), businessId: businessId(),
   appointmentId: uuid('appointment_id').notNull(),
   eventType: text('event_type', { enum: ['created', 'cancelled', 'rescheduled', 'status_changed', 'corrected'] }).notNull(),
-  actorType: text('actor_type', { enum: ['customer', 'owner', 'platform', 'system'] }).notNull(),
+  actorType: text('actor_type', { enum: ['customer', 'owner', 'location_operator', 'platform', 'system'] }).notNull(),
   actorUserId: uuid('actor_user_id').references(() => authUsers.id, { onDelete: 'set null' }),
   appointmentVersion: integer('appointment_version').notNull(),
   changes: jsonb('changes').$type<Record<string, unknown>>().default({}).notNull(),
@@ -356,9 +372,34 @@ export const appointmentEvents = app.table('appointment_events', {
   index('appointment_events_history_idx').on(t.businessId, t.appointmentId, t.createdAt, t.id),
   index('appointment_events_actor_idx').on(t.actorUserId),
   check('appointment_events_type_check', sql`${t.eventType} in ('created', 'cancelled', 'rescheduled', 'status_changed', 'corrected')`),
-  check('appointment_events_actor_check', sql`${t.actorType} in ('customer', 'owner', 'platform', 'system')`),
+  check('appointment_events_actor_check', sql`${t.actorType} in ('customer', 'owner', 'location_operator', 'platform', 'system')`),
   check('appointment_events_version_check', sql`${t.appointmentVersion} > 0`),
   check('appointment_events_changes_check', sql`jsonb_typeof(${t.changes}) = 'object'`),
+]);
+
+export const appointmentPayments = app.table('appointment_payments', {
+  id: id(), businessId: businessId(),
+  appointmentId: uuid('appointment_id').notNull(),
+  amountMinor: integer('amount_minor').notNull(),
+  currency: text('currency').notNull(),
+  method: text('method', { enum: ['cash', 'transfer', 'card', 'other'] }).notNull(),
+  note: text('note'),
+  correctedPaymentId: uuid('corrected_payment_id'),
+  recordedByUserId: uuid('recorded_by_user_id').references(() => authUsers.id, { onDelete: 'set null' }),
+  recordedAt: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  reversedAt: timestamp('reversed_at', { withTimezone: true }),
+  reversalReason: text('reversal_reason'),
+}, (t) => [
+  unique('appointment_payments_business_id_unique').on(t.businessId, t.id),
+  foreignKey({ name: 'appointment_payments_appointment_fk', columns: [t.businessId, t.appointmentId], foreignColumns: [appointments.businessId, appointments.id] }).onDelete('restrict'),
+  foreignKey({ name: 'appointment_payments_correction_fk', columns: [t.businessId, t.correctedPaymentId], foreignColumns: [t.businessId, t.id] }).onDelete('restrict'),
+  index('appointment_payments_appointment_idx').on(t.businessId, t.appointmentId, t.recordedAt),
+  index('appointment_payments_actor_idx').on(t.recordedByUserId),
+  check('appointment_payments_amount_check', sql`${t.amountMinor} > 0`),
+  check('appointment_payments_currency_check', sql`${t.currency} ~ '^[A-Z]{3}$'`),
+  check('appointment_payments_method_check', sql`${t.method} in ('cash', 'transfer', 'card', 'other')`),
+  check('appointment_payments_reversal_check', sql`(${t.reversedAt} is null) = (${t.reversalReason} is null)`),
+  check('appointment_payments_note_check', sql`${t.note} is null or length(${t.note}) <= 500`),
 ]);
 
 export type Appointment = typeof appointments.$inferSelect;

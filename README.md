@@ -4,7 +4,7 @@ Plataforma SaaS de turnos configurable por negocio.
 
 ## Estado
 
-Prototipo navegable Next.js con datos ficticios y estado local. Incluye bienvenida, reserva, cancelación, agenda del dueño y personalización. No se conecta a servicios reales.
+Prototipo navegable Next.js con datos ficticios y estado local. Incluye bienvenida, reserva, cancelación y agenda del dueño. La edición de la página pública queda desactivada por defecto para el MVP mediante `NEXT_PUBLIC_PAGE_EDITOR_ENABLED`; el código se conserva para retomarla. No se conecta a servicios reales.
 
 ## Ejecutar el prototipo
 
@@ -30,13 +30,14 @@ Next.js 16, React 19 y TypeScript estricto. Dependencias preparadas para Supabas
 - `npm run test:db`: pruebas del esquema sobre PostgreSQL 17 descartable, sin conectar a Supabase.
 - `npm run db:generate`: generar migraciones locales desde el esquema Drizzle.
 - `npm run db:check`: verificar metadatos de migraciones.
+- `npm run setup:business`: alta inicial interactiva del negocio, sedes y dueño con la conexión de migración local; requiere usuario confirmado en Auth.
 - `npm run test:prototype`: recorridos existentes con el servidor local iniciado y Edge instalado.
 
 Tailwind está disponible sin Preflight para preservar los estilos del prototipo. `components.json` prepara las rutas de shadcn/ui; sus componentes y tokens se incorporarán conforme se implementen pantallas reales.
 
 ESLint conserva advertencias de efectos React en tres archivos del prototipo. La regla `set-state-in-effect` continúa siendo error para los demás archivos. ESLint 9 se mantiene por compatibilidad con los plugins de la configuración de Next.js; revisar su actualización cuando esos plugins admitan ESLint 10.
 
-`.env.example` documenta las variables. Los valores reales van en `.env.local`. No se necesitan credenciales para ejecutar el prototipo. El esquema Drizzle tiene 19 tablas y las cuatro migraciones están aplicadas al proyecto Supabase de desarrollo. Incluye sedes, profesionales asignados por sede y reservas con ubicación. `DATABASE_URL` usa el usuario runtime `turnow_app`, miembro de `turnow_runtime`.
+`.env.example` documenta las variables. Los valores reales van en `.env.local`. No se necesitan credenciales para ejecutar el prototipo. El esquema Drizzle tiene 19 tablas y las seis migraciones (`0000`–`0005`) están aplicadas al proyecto Supabase de desarrollo. Incluye sedes, roles acotados por sede y reservas con ubicación. `DATABASE_URL` usa el usuario runtime `turnow_app`, miembro de `turnow_runtime`.
 
 `npm run db:ping -- --migration` verifica la conexión administrativa sin modificar datos. `npm run db:ping` verifica la conexión runtime y rechaza roles privilegiados.
 
@@ -49,6 +50,7 @@ Ver [instrucciones de migraciones y permisos](drizzle/README.md). `npm run db:mi
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Modelo de datos](docs/DATA_MODEL.md)
 - [Checklist de pendientes](docs/CHECKLIST.md)
+- [Configurar Supabase Auth](docs/AUTH_SETUP.md)
 
 ## Estructura
 
