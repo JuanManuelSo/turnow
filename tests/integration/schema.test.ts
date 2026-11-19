@@ -172,11 +172,14 @@ describe('esquema PostgreSQL y migraciones', () => {
     await db.begin(tx => reserve(tx, f, { starts: '2030-06-10T12:40:00Z' }));
   });
 
-  it('un bloqueo y una reserva comparten la restricción de solapamiento', async () => {
+  it('permite conservar un turno confirmado al crear un bloqueo explícito', async () => {
     const f = await fixture();
     await db`insert into app.calendar_occupancies (business_id, location_id, professional_id, kind, starts_at, ends_at)
       values (${f.business}, ${f.location}, ${f.professional}, 'block', '2030-06-10T12:00:00Z', '2030-06-10T13:00:00Z')`;
-    await expect(db.begin(tx => reserve(tx, f))).rejects.toMatchObject({ code: '23P01' });
+    await db.begin(tx => reserve(tx, f));
+    const [{ count }] = await db`select count(*)::int as count from app.calendar_occupancies
+      where business_id = ${f.business} and professional_id = ${f.professional} and is_active`;
+    expect(count).toBe(2);
   });
 
   it('exige una ocupación coherente al finalizar la transacción', async () => {
@@ -322,6 +325,6 @@ describe('esquema PostgreSQL y migraciones', () => {
       values (${f.business}, ${f.otherLocation}, ${f.professional})`;
     await db.begin(tx => reserve(tx, f));
     await expect(db.begin(tx => reserve(tx, f, { location: f.otherLocation })))
-      .rejects.toMatchObject({ code: '23P01', constraint_name: 'calendar_occupancies_no_overlap' });
+      .rejects.toMatchObject({ code: '23P01', constraint_name: 'calendar_occupancies_appointment_no_overlap' });
   });
 });

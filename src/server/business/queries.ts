@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { and, asc, desc, eq, gte, gt, inArray, isNull } from 'drizzle-orm';
 import { PAGE_EDITOR_ENABLED } from '@/config/features';
 import { getDb } from '@/server/db/client';
@@ -18,7 +19,7 @@ export type BusinessShell = {
   currency: string;
 };
 
-export async function getBusinessShell(businessId: string): Promise<BusinessShell | null> {
+export const getBusinessShell = cache(async (businessId: string): Promise<BusinessShell | null> => {
   const [business] = await getDb().select({
     id: businesses.id,
     name: businesses.name,
@@ -28,7 +29,7 @@ export async function getBusinessShell(businessId: string): Promise<BusinessShel
     currency: businesses.currency,
   }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
   return business ?? null;
-}
+});
 
 export async function countOwners(businessId: string) {
   const rows = await getDb().select({ userId: businessMembers.userId })

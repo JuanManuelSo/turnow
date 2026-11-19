@@ -14,12 +14,15 @@
 - Intentos públicos de consulta, reserva y cancelación se limitan por negocio e identificador de cliente con contadores persistentes; el identificador se guarda hasheado.
 - Los snapshots de servicio, duración, precio y condiciones quedan en el turno; las ocupaciones se crean en la misma transacción y bloquean solapamientos.
 - Detalle de atención, reprogramación, cancelación y registro de asistencia/ausencia.
+- Reprogramación del dueño entre sedes, profesionales, fechas y horarios disponibles. El operador queda limitado a su sede. La operación conserva duración y margen contractual, actualiza snapshots de sede/zona horaria, mueve la ocupación y registra el cambio en el historial.
 - Cobros manuales por turno en efectivo, transferencia, tarjeta u otro medio. Las correcciones revierten el asiento anterior y agregan otro, sin borrar el historial.
 - La configuración sigue disponible desde el menú; si falta una asignación o un servicio se muestra el acceso correspondiente, sin ocultar la agenda.
 - Sedes: alta, edición, estado y sede principal.
 - Catálogo compartido: servicios, duración, precio y visibilidad.
 - Profesionales, asignaciones a sedes y servicios.
 - Horarios de sede y por profesional, incluidos turnos partidos.
+- En la pestaña **Excepciones y bloqueos**, el dueño puede cerrar una fecha o definir un horario especial para una sede, y crear/eliminar bloqueos de un profesional. Si hay turnos afectados, se muestra el conteo y hace falta una segunda confirmación; los turnos no se cancelan ni notifican automáticamente.
+- La agenda marca **Fuera de horario** los turnos confirmados afectados por un cierre, un horario especial o un bloqueo profesional. La disponibilidad pública y manual excluye cierres y bloqueos.
 - Reglas de reserva y cancelación.
 - Textos, contacto y enlaces de la página pública: implementados, pero el editor queda oculto para el MVP con `NEXT_PUBLIC_PAGE_EDITOR_ENABLED=false`. La página pública sigue disponible con la presentación guardada o predeterminada; la habilitación de reservas online se controla desde Configuración.
 
@@ -33,4 +36,4 @@ El panel usa rail azul oscuro, fondo mineral, Manrope, líneas capilares y numer
 
 La vista del calendario es una implementación propia ajustada al panel; no agrega una dependencia de calendario genérica ni sincroniza Google Calendar. Las horas se muestran en la zona horaria configurada de la sede.
 
-Las pruebas unitarias del motor están en `src/server/business/availability-engine.test.ts`. Las pruebas de integración PostgreSQL requieren Docker. El E2E `node tests/e2e/panel.mjs` necesita su negocio de prueba y `PANEL_TEST_FILE`; la pasada completa contra Supabase confirmó el alta por horario disponible, la persistencia del turno, el cobro, la asistencia, la configuración y el responsive.
+Las pruebas unitarias del motor están en `src/server/business/availability-engine.test.ts`. Las pruebas de integración PostgreSQL requieren Docker. El E2E `node tests/e2e/panel.mjs` necesita su negocio de prueba y `PANEL_TEST_FILE`; cubre reservas públicas y manuales, excepciones y bloqueos con confirmación, reprogramación entre sedes, snapshots, historial y responsive.

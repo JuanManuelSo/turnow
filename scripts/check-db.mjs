@@ -51,7 +51,7 @@ try {
     '42501': 'El usuario no tiene los permisos necesarios para esta consulta.',
     '42P01': 'La conexión funciona, pero faltan tablas. Revisá las migraciones.',
     PRIVILEGED_RUNTIME: 'DATABASE_URL todavía usa un rol privilegiado. Configurá un login miembro de turnow_runtime.',
-    SWAPPED_URLS: 'Las URLs parecen invertidas: DATABASE_URL debe usar el transaction pooler (6543) y DATABASE_MIGRATION_URL el session pooler o conexión directa (5432).',
+    SWAPPED_URLS: 'Las URLs parecen invertidas: usá el usuario runtime en DATABASE_URL (session pooler 5432 en una instancia persistente, o transaction pooler 6543 en serverless) y el usuario administrador en DATABASE_MIGRATION_URL (5432).',
   };
   // No imprimir el objeto error: puede contener datos de conexión o consultas.
   console.error(messages[error.code] ?? `No se pudo verificar la conexión (${error.code ?? 'invalid configuration'}).`);

@@ -15,9 +15,11 @@
     "test:watch": "vitest",
     "test:db": "vitest run tests/integration/schema.test.ts",
     "test:prototype": "node tests/e2e/prototype.mjs",
+    "test:perf": "node tests/e2e/performance.mjs",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate-config": "node scripts/migrate-configuration.mjs",
     "db:ping": "node scripts/check-db.mjs",
     "setup:business": "node scripts/provision-business.mjs"
   },

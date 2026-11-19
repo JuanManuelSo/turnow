@@ -3,11 +3,12 @@ import { and, asc, desc, eq, gte, inArray, lt, ne } from 'drizzle-orm';
 import { getDb } from '@/server/db/client';
 import { localDayBounds } from '@/lib/timezone';
 import {
-  appointmentPayments, appointments, businesses, calendarOccupancies, exceptionIntervals,
+  appointmentPayments, appointments, calendarOccupancies, exceptionIntervals,
   locations, businessSettings, professionalLocations, professionals, scheduleExceptions,
   schedules, services, weeklyIntervals,
 } from '@/server/db/schema';
 import { intervalsForDate, weekdayForDate } from './availability-engine';
+import { getBusinessShell } from './queries';
 
 function localMinuteOfDay(value: Date, timezone: string) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
@@ -18,20 +19,19 @@ function localMinuteOfDay(value: Date, timezone: string) {
 
 export async function getAgendaData(businessId: string, requestedLocationId: string | undefined, date: string) {
   const db = getDb();
-  const [businessRows, locationRows, settingRows] = await Promise.all([
-    db.select({ timezone: businesses.timezone, currency: businesses.currency, name: businesses.name })
-      .from(businesses).where(eq(businesses.id, businessId)).limit(1),
+  const [business, locationRows, settingRows] = await Promise.all([
+    getBusinessShell(businessId),
     db.select({ id: locations.id, name: locations.name, addressText: locations.addressText, timezone: locations.timezone })
       .from(locations).where(and(eq(locations.businessId, businessId), eq(locations.isActive, true)))
       .orderBy(desc(locations.isPrimary), asc(locations.name)),
     db.select({ allowAnyProfessional: businessSettings.allowAnyProfessional }).from(businessSettings)
       .where(eq(businessSettings.businessId, businessId)).limit(1),
   ]);
-  const business = businessRows[0];
   const selectedLocation = locationRows.find(item => item.id === requestedLocationId) ?? locationRows[0] ?? null;
   if (!business || !selectedLocation) return { business: business ?? null, locations: locationRows, selectedLocation: null, professionals: [], services: [], appointments: [], allowAnyProfessional: false };
 
-  const [professionalRows, serviceRows] = await Promise.all([db.select({ id: professionals.id, name: professionals.displayName })
+  const bounds = localDayBounds(date, selectedLocation.timezone);
+  const [professionalRows, serviceRows, appointmentRows, scheduleRows] = await Promise.all([db.select({ id: professionals.id, name: professionals.displayName })
     .from(professionals)
     .innerJoin(professionalLocations, and(
       eq(professionalLocations.businessId, professionals.businessId),
@@ -43,10 +43,8 @@ export async function getAgendaData(businessId: string, requestedLocationId: str
     .orderBy(asc(professionals.sortOrder), asc(professionals.displayName)),
   db.select({ id: services.id, name: services.name, duration: services.durationMinutes, priceMinor: services.priceMinor })
     .from(services).where(and(eq(services.businessId, businessId), eq(services.isActive, true)))
-    .orderBy(asc(services.sortOrder), asc(services.name))]);
-
-  const bounds = localDayBounds(date, selectedLocation.timezone);
-  const appointmentRows = await db.select({
+    .orderBy(asc(services.sortOrder), asc(services.name)),
+  db.select({
     id: appointments.id, locationId: appointments.locationId,
     startsAt: appointments.startsAt, endsAt: appointments.endsAt,
     customerName: appointments.customerName, customerPhone: appointments.customerPhone,
@@ -59,14 +57,14 @@ export async function getAgendaData(businessId: string, requestedLocationId: str
     eq(appointments.locationId, selectedLocation.id),
     gte(appointments.startsAt, bounds.start), lt(appointments.startsAt, bounds.end),
     ne(appointments.status, 'cancelled'),
-  )).orderBy(asc(appointments.startsAt));
-
-  const scheduleRows = await db.select({
+  )).orderBy(asc(appointments.startsAt)),
+  db.select({
     id: schedules.id, professionalId: schedules.professionalId,
   }).from(schedules).where(and(
     eq(schedules.businessId, businessId),
     eq(schedules.locationId, selectedLocation.id),
-  ));
+  )),
+  ]);
   const scheduleIds = scheduleRows.map(schedule => schedule.id);
 
   const [intervalRows, exceptionRows, blockRows] = await Promise.all([

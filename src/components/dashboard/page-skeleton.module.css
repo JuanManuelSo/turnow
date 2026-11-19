@@ -1,0 +1,34 @@
+.skeleton { width: 100%; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 28px; }
+.heading > div { width: min(70%, 420px); }
+.heading h1 { margin: 0 0 16px; font-size: clamp(1.8rem, 3vw, 2.35rem); font-weight: 800; letter-spacing: -.04em; }
+.line, .control, .input, .time, .value { display: block; border-radius: 5px; background: var(--panel-line, #dbe3e8); animation: breathe 1.8s ease-in-out infinite; }
+.line { width: 100%; height: 12px; }
+.short { width: 55%; }
+.control { width: 100px; height: 44px; flex-shrink: 0; }
+.input { width: 100%; height: 44px; }
+.time { width: 44px; height: 20px; flex-shrink: 0; }
+.value { width: 80px; height: 26px; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.metrics > div { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--panel-line); border-radius: 5px; }
+.columns { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; }
+.surface { min-width: 0; border: 1px solid var(--panel-line); background: var(--panel-surface); border-radius: 5px; }
+.toolbar { display: flex; justify-content: space-between; gap: 16px; padding: 16px; border-bottom: 1px solid var(--panel-line); }
+.row { display: flex; align-items: center; gap: 20px; padding: 24px 20px; border-bottom: 1px solid var(--panel-line); }
+.row:last-child { border-bottom: 0; }
+.copy { display: grid; gap: 16px; flex: 1; min-width: 0; }
+.field { display: grid; gap: 12px; padding: 20px; }
+@keyframes breathe { 50% { opacity: .5; } }
+@media (max-width: 600px) {
+  .heading { gap: 12px; flex-wrap: wrap; }
+  .heading > div { width: 100%; }
+  .metrics, .columns { grid-template-columns: minmax(0, 1fr); }
+  .metrics { gap: 0; }
+  .metrics > div { grid-template-columns: 1fr 80px; padding: 12px; }
+  .metrics > div > :last-child { display: none; }
+  .row { gap: 12px; padding: 20px 12px; }
+  .row > .control { width: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .line, .control, .input, .time, .value { animation: none; }
+}

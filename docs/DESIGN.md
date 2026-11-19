@@ -258,7 +258,7 @@ El panel incluye **Agenda**, **Sedes**, **Servicios**, **Profesionales**, **Hora
 
 > **MVP (16/11/2026):** **Página pública** queda oculta para el piloto con `NEXT_PUBLIC_PAGE_EDITOR_ENABLED=false`; la navegación muestra seis secciones y el editor se retoma después.
 
-En escritorio hay un rail lateral oscuro y sobrio. En móvil las seis secciones del MVP se convierten en una grilla compacta, sin desplazamiento horizontal. Las acciones y controles operativos mantienen áreas de toque de 44 px como mínimo.
+En escritorio hay un rail lateral oscuro y sobrio. Hasta 900 px, un header compacto ofrece un botón de menú que abre la navegación desde el borde izquierdo; el panel conserva las secciones, el contexto del negocio y el cierre de sesión. Se cierra al elegir una sección, tocar fuera o pulsar Escape y devuelve el foco al disparador. Las acciones y controles operativos mantienen áreas de toque de 44 px como mínimo.
 
 ### Configuración
 
@@ -279,10 +279,13 @@ Los gráficos solo se incorporan cuando responden una pregunta concreta del due�
 - Al usar colores por profesional, diferenciar los estados mediante etiquetas o iconos.
 - Abrir detalles en un panel lateral en escritorio y una vista adecuada al ancho en móvil.
 - Conservar fecha, filtros y posición al cerrar el detalle.
+- La barra de fecha y filtros ocupa una fila cuando hay espacio y dos filas compactas en pantallas estrechas. Los desplegables de sede y profesional muestran texto sin iconos interiores; la navegación de fecha usa flechas y selector, sin botón de regreso a hoy.
 
 Crear, reprogramar, cancelar y bloquear deben tener entradas visibles. La interacción básica no debe depender de arrastrar elementos; si se incorpora arrastre, debe existir una alternativa con formularios.
 
 ### Formularios operativos
+
+Crear y editar sedes, servicios y profesionales usa `EntityFormDialog`, que comparte encabezado, feedback, cancelación y acciones de guardado. `ResponsiveDialog` es el contenedor común también para crear y consultar turnos: overlay fijo con diálogo centrado en escritorio y bottom sheet hasta 600 px, pegada al borde inferior y con animación de entrada desde abajo. Sus estilos estructurales están aislados en un CSS Module. El encabezado permanece visible y el contenido tiene scroll interno. El componente contiene el foco, bloquea el scroll y la interacción del fondo, y restaura el foco al cerrar; Escape y el fondo permiten cerrar. Los cuatro accesos de creación muestran el icono +. Los editores de entidades avisan al descartar cambios y permanecen abiertos ante errores de validación; al guardar se muestra la confirmación en la lista. Horarios semanales y configuración extensa conservan su página propia.
 
 - Agrupar campos por tarea, con valores iniciales razonables.
 - Mostrar claramente profesional, fecha, duración y efecto sobre disponibilidad.

@@ -80,6 +80,7 @@ const waitForQuery = async (query, message) => {
 
 let locationId;
 let serviceId;
+let operatorMembershipRestore = null;
 
 async function resetTestBusiness() {
   await sql.begin(async tx => {
@@ -92,6 +93,8 @@ async function resetTestBusiness() {
     await tx`delete from app.calendar_occupancies where business_id = ${businessId}`;
     await tx`delete from app.appointments where business_id = ${businessId}`;
     await tx`delete from app.customers where business_id = ${businessId}`;
+    await tx`delete from app.exception_intervals where business_id = ${businessId}`;
+    await tx`delete from app.schedule_exceptions where business_id = ${businessId}`;
     await tx`delete from app.weekly_intervals where business_id = ${businessId}`;
     await tx`delete from app.schedules where business_id = ${businessId}`;
     await tx`delete from app.professional_services where business_id = ${businessId}`;
@@ -146,6 +149,8 @@ try {
   }, 'Location persisted through the runtime role');
 
   // Sedes: edit
+  await row('Sede de prueba').getByRole('link', { name: 'Editar', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Sede de prueba', exact: true }).waitFor();
   await page.getByLabel('Dirección').fill('Córdoba 1000 bis');
   await saveWith(page.getByRole('button', { name: 'Guardar cambios' }), '/dashboard/sedes');
   const [editedLocation] = await sql`select address_text from app.locations where id = ${locationId}`;
@@ -178,6 +183,8 @@ try {
     show_price: true, is_active: true,
   }, 'Service persisted with minor-unit price');
 
+  await row('Corte de prueba').getByRole('link', { name: 'Editar', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Corte de prueba', exact: true }).waitFor();
   await page.getByLabel('Precio (ARS)').fill('15000');
   await saveWith(page.getByRole('button', { name: 'Guardar cambios' }), '/dashboard/servicios');
   const [editedService] = await sql`select price_minor from app.services where id = ${serviceId}`;
@@ -332,6 +339,14 @@ try {
   const booking = page.locator('#reservar');
   await booking.getByRole('heading', { name: 'Elegí un servicio.' }).waitFor();
   await booking.getByRole('button', { name: /Corte de prueba/ }).click();
+  await booking.getByRole('button', { name: 'Continuar' }).click();
+  await booking.getByRole('heading', { name: 'Elegí sede y profesional.' }).waitFor();
+  await booking.getByRole('button', { name: 'Volver al paso 1: Servicio' }).click();
+  await booking.getByRole('heading', { name: 'Elegí un servicio.' }).waitFor();
+  assert.equal(await booking.getByRole('button', { name: /Corte de prueba/ }).getAttribute('aria-pressed'), 'true',
+    'Going back keeps the chosen service selected');
+  assert.equal(await booking.getByRole('button', { name: 'Volver al estudio' }).count(), 1,
+    'The step-back action remains distinct from leaving the booking wizard');
   await booking.getByRole('button', { name: 'Continuar' }).click();
   await booking.getByRole('heading', { name: 'Elegí sede y profesional.' }).waitFor();
   await booking.getByRole('button', { name: /Urquiza/ }).click();
@@ -574,6 +589,245 @@ try {
   await page.getByRole('heading', { level: 1, name: 'Agenda diaria' }).waitFor();
   await screenshot('panel-08-agenda-final');
 
+  // A1/A2: excepciones, bloqueos y reprogramación entre sedes.
+  await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${agendaLocation.id}`);
+  await page.getByRole('button', { name: 'Nuevo turno' }).click();
+  await page.getByLabel('Cliente').fill('Cliente reprogramación');
+  await page.getByLabel('Teléfono').fill('+5493415550166');
+  await page.getByLabel('Servicio', { exact: true }).selectOption(serviceId);
+  await page.getByLabel('Profesional', { exact: true }).selectOption(professionalId);
+  await page.getByLabel('Fecha', { exact: true }).fill(dateValue);
+  await page.getByLabel('Horario disponible').locator('option[value="16:00"]').waitFor({ state: 'attached' });
+  await page.getByLabel('Horario disponible').selectOption('16:00');
+  await page.getByRole('button', { name: 'Guardar turno' }).click();
+  await page.getByRole('status').filter({ hasText: 'Turno creado y guardado.' }).waitFor();
+  await page.getByRole('button', { name: 'Ver agenda' }).click();
+  const [rescheduleCandidate] = await sql`select id, starts_at, ends_at, location_id, professional_id, version
+    from app.appointments where business_id = ${businessId} and customer_name = 'Cliente reprogramación'`;
+  assert(rescheduleCandidate, 'Reschedule fixture appointment persisted');
+
+  // Fixture for the target location: assignment, weekly hours and no existing occupancy.
+  const [febreroLocation] = await sql`select id, name from app.locations
+    where business_id = ${businessId} and slug = 'febrero'`;
+  await sql.begin(async tx => {
+    await tx`insert into app.professional_locations (business_id, location_id, professional_id)
+      values (${businessId}, ${febreroLocation.id}, ${professionalId})`;
+    const [locationSchedule] = await tx`insert into app.schedules (business_id, location_id, professional_id)
+      values (${businessId}, ${febreroLocation.id}, null) returning id`;
+    await tx`insert into app.weekly_intervals (business_id, schedule_id, weekday, start_minute, end_minute)
+      values (${businessId}, ${locationSchedule.id}, 1, 540, 1080)`;
+    const [personalSchedule] = await tx`insert into app.schedules (business_id, location_id, professional_id)
+      values (${businessId}, ${febreroLocation.id}, ${professionalId}) returning id`;
+    await tx`insert into app.weekly_intervals (business_id, schedule_id, weekday, start_minute, end_minute)
+      values (${businessId}, ${personalSchedule.id}, 1, 540, 1080)`;
+  });
+
+  // Closed exception: the first save warns about the confirmed appointment.
+  await page.goto(`${base}/dashboard/horarios?sede=${agendaLocation.id}&vista=excepciones`);
+  await page.getByRole('heading', { name: 'Cierres y horarios especiales' }).waitFor();
+  await page.waitForTimeout(300);
+  await page.locator('#exception-date').fill(dateValue);
+  await page.locator('#exception-reason').fill('Feriado interno de prueba');
+  assert.equal(await page.locator('#exception-date').inputValue(), dateValue, 'Exception form retains the selected date');
+  assert.equal(await page.locator('#exception-date').evaluate(input => input.form.checkValidity()), true,
+    'Exception form is valid before saving');
+  await saveWith(page.getByRole('button', { name: 'Guardar excepción' }), '/dashboard/horarios');
+  await page.getByText(/Hay 1 turno confirmado/).waitFor();
+  await saveWith(page.getByRole('button', { name: 'Guardar igual' }), '/dashboard/horarios');
+  await page.getByText('Cierre guardado. La agenda ya no ofrece turnos ese día.').waitFor();
+  const [closedException] = await sql`select se.mode, se.reason, s.location_id from app.schedule_exceptions se
+    join app.schedules s on s.id = se.schedule_id and s.business_id = se.business_id
+    where se.business_id = ${businessId} and se.local_date = ${dateValue} and s.location_id = ${agendaLocation.id}`;
+  assert.equal(closedException.mode, 'closed', 'Closed exception persisted for the location schedule');
+  assert.equal(closedException.reason, 'Feriado interno de prueba');
+
+  await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${agendaLocation.id}`);
+  const urquizaAppointment = page.getByRole('button', { name: /Cliente reprogramación/ });
+  await urquizaAppointment.waitFor();
+  assert.equal(await urquizaAppointment.getByText('Fuera de horario', { exact: true }).count(), 1,
+    'A closed exception marks the confirmed appointment as outside schedule');
+
+  // Reschedule to another location, keeping the duration snapshot and moving the occupancy.
+  await urquizaAppointment.click();
+  await page.getByRole('heading', { name: 'Detalle del turno' }).waitFor();
+  await page.getByRole('button', { name: 'Reprogramar' }).click();
+  const rescheduleForm = page.locator('.agenda-reschedule-form');
+  await rescheduleForm.getByLabel('Sede').selectOption(febreroLocation.id);
+  await rescheduleForm.getByLabel('Horario disponible')
+    .locator(`option[value="${professionalId}|10:00"]`).waitFor({ state: 'attached' });
+  await rescheduleForm.getByLabel('Horario disponible').selectOption(`${professionalId}|10:00`);
+  await saveWith(rescheduleForm.getByRole('button', { name: 'Guardar cambios' }), '/dashboard');
+  const rescheduleErrors = await rescheduleForm.locator('[role="alert"]').allInnerTexts();
+  assert.deepEqual(rescheduleErrors, [], `Reschedule action has no errors${rescheduleErrors.length ? `: ${rescheduleErrors.join(' ')}` : ''}`);
+  const movedAppointment = await waitForQuery(
+    () => sql`select location_id, professional_id, starts_at, ends_at, timezone_snapshot,
+      location_name_snapshot, duration_minutes_snapshot, version
+      from app.appointments where id = ${rescheduleCandidate.id} and location_id = ${febreroLocation.id}`,
+    'Appointment was not moved to the target location',
+  );
+  assert.equal(movedAppointment.professional_id, professionalId);
+  assert.equal(movedAppointment.timezone_snapshot, 'America/Argentina/Buenos_Aires');
+  assert.equal(movedAppointment.location_name_snapshot, '3 de Febrero');
+  assert.equal(movedAppointment.duration_minutes_snapshot, 30, 'Reschedule keeps the duration snapshot');
+  assert.equal(movedAppointment.version, 2);
+  const movedLocalTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(movedAppointment.starts_at);
+  assert.equal(movedLocalTime, '10:00');
+  const [movedOccupancy] = await sql`select location_id, professional_id, starts_at, ends_at, is_active
+    from app.calendar_occupancies where business_id = ${businessId} and appointment_id = ${rescheduleCandidate.id}`;
+  assert.equal(movedOccupancy.location_id, febreroLocation.id, 'Occupancy follows the appointment to the new location');
+  assert.equal(movedOccupancy.professional_id, professionalId);
+  assert.equal(movedOccupancy.is_active, true);
+  const occupancyLocalTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(movedOccupancy.starts_at);
+  assert.equal(occupancyLocalTime, '10:00');
+  const [moveEvent] = await sql`select changes, appointment_version from app.appointment_events
+    where business_id = ${businessId} and appointment_id = ${rescheduleCandidate.id} and event_type = 'rescheduled'`;
+  assert.equal(moveEvent.appointment_version, 2, 'Reschedule event records the new version');
+  assert.equal(moveEvent.changes.from.locationId, agendaLocation.id);
+  assert.equal(moveEvent.changes.to.locationId, febreroLocation.id);
+  assert.equal(moveEvent.changes.to.professionalId, professionalId);
+
+  await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${febreroLocation.id}`);
+  const febreroAppointment = page.getByRole('button', { name: /Cliente reprogramación/ });
+  await febreroAppointment.waitFor();
+  assert.equal(await febreroAppointment.getByText('Fuera de horario', { exact: true }).count(), 0,
+    'Rescheduled appointment is back inside the target schedule');
+
+  // Professional block: warns about the overlapping confirmed appointment, then marks it outside schedule.
+  await page.goto(`${base}/dashboard/horarios?sede=${febreroLocation.id}&vista=excepciones`);
+  await page.getByRole('heading', { name: 'Bloqueos del equipo' }).waitFor();
+  await page.waitForTimeout(300);
+  await page.locator('#block-professional').selectOption(professionalId);
+  await page.locator('#block-date').fill(dateValue);
+  await page.locator('#block-all-day').selectOption('range');
+  await page.locator('#block-start').fill('09:00');
+  await page.locator('#block-end').fill('11:00');
+  await page.locator('#block-reason').fill('Capacitación interna de prueba');
+  assert.equal(await page.locator('#block-date').inputValue(), dateValue, 'Block form retains the selected date');
+  assert.equal(await page.locator('#block-date').evaluate(input => input.form.checkValidity()), true,
+    'Block form is valid before saving');
+  await saveWith(page.getByRole('button', { name: 'Guardar bloqueo' }), '/dashboard/horarios');
+  await page.getByText(/Hay 1 turno confirmado/).waitFor();
+  const blockValidity = await page.locator('#block-date').evaluate(input => ({
+    valid: input.form.checkValidity(),
+    invalid: [...input.form.querySelectorAll('input, select')].filter(control => !control.checkValidity())
+      .map(control => ({ name: control.name, value: control.value, message: control.validationMessage })),
+  }));
+  assert.equal(blockValidity.valid, true, `Block form remains valid after warning: ${JSON.stringify(blockValidity)}`);
+  await saveWith(page.getByRole('button', { name: 'Guardar igual' }), '/dashboard/horarios');
+  await page.getByText('Bloqueo guardado para Profesional de prueba.').waitFor();
+  const [createdBlock] = await sql`select id, location_id, professional_id, starts_at, ends_at, reason, is_active
+    from app.calendar_occupancies where business_id = ${businessId} and kind = 'block'
+      and location_id = ${febreroLocation.id}`;
+  assert(createdBlock, 'Professional block persisted as a calendar occupancy');
+  assert.equal(createdBlock.professional_id, professionalId);
+  assert.equal(createdBlock.reason, 'Capacitación interna de prueba');
+  assert.equal(createdBlock.is_active, true);
+
+  await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${febreroLocation.id}`);
+  const blockedAppointment = page.getByRole('button', { name: /Cliente reprogramación/ });
+  await blockedAppointment.waitFor();
+  assert.equal(await blockedAppointment.getByText('Fuera de horario', { exact: true }).count(), 1,
+    'A professional block marks the overlapping appointment as outside schedule');
+
+  // Public availability respects the closed exception and the professional block.
+  await sql`update app.business_settings set public_booking_enabled = true, updated_at = now()
+    where business_id = ${businessId}`;
+  await page.goto(`${base}/${testBusiness.slug}`);
+  await page.getByRole('button', { name: 'Reservar turno', exact: true }).click();
+  const exceptionBooking = page.locator('#reservar');
+  await exceptionBooking.getByRole('button', { name: /Corte de prueba/ }).click();
+  await exceptionBooking.getByRole('button', { name: 'Continuar' }).click();
+  await exceptionBooking.getByRole('button', { name: /Urquiza/ }).click();
+  await exceptionBooking.getByRole('button', { name: /Profesional de prueba/ }).click();
+  await exceptionBooking.getByRole('button', { name: 'Continuar' }).click();
+  await exceptionBooking.getByLabel('Fecha').fill(dateValue);
+  await exceptionBooking.getByRole('heading', { name: 'Este día no tiene horarios disponibles' }).waitFor();
+
+  await page.goto(`${base}/${testBusiness.slug}`);
+  await page.getByRole('button', { name: 'Reservar turno', exact: true }).click();
+  const blockBooking = page.locator('#reservar');
+  await blockBooking.getByRole('button', { name: /Corte de prueba/ }).click();
+  await blockBooking.getByRole('button', { name: 'Continuar' }).click();
+  await blockBooking.getByRole('button', { name: /3 de Febrero/ }).click();
+  await blockBooking.getByRole('button', { name: /Profesional de prueba/ }).click();
+  await blockBooking.getByRole('button', { name: 'Continuar' }).click();
+  await blockBooking.getByLabel('Fecha').fill(dateValue);
+  await blockBooking.getByRole('button', { name: '11:00', exact: true }).waitFor();
+  assert.equal(await blockBooking.getByRole('button', { name: '09:00', exact: true }).count(), 0,
+    'Blocked morning slots are not offered publicly');
+  assert.equal(await blockBooking.getByRole('button', { name: '10:00', exact: true }).count(), 0,
+    'The rescheduled appointment blocks its public slot');
+  await sql`update app.business_settings set public_booking_enabled = false, updated_at = now()
+    where business_id = ${businessId}`;
+  await page.goto(`${base}/dashboard`);
+  await page.getByRole('heading', { level: 1, name: 'Agenda diaria' }).waitFor();
+
+  // Operator permissions: attempt a cross-location reschedule, then verify read/navigation scope.
+  const [operatorFixtureAppointment] = await sql`select id, location_id, starts_at, version
+    from app.appointments where business_id = ${businessId} and id = ${savedAppointment.id}`;
+  assert(operatorFixtureAppointment, 'Operator permission fixture appointment exists');
+  await sql.begin(async tx => {
+    await tx`update app.appointments set status = 'confirmed', updated_at = now()
+      where business_id = ${businessId} and id = ${operatorFixtureAppointment.id}`;
+    await tx`update app.calendar_occupancies set is_active = true, updated_at = now()
+      where business_id = ${businessId} and appointment_id = ${operatorFixtureAppointment.id}`;
+  });
+
+  await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${agendaLocation.id}`);
+  await page.getByRole('button', { name: /Cliente de prueba agenda/ }).click();
+  await page.getByRole('heading', { name: 'Detalle del turno' }).waitFor();
+  await page.getByRole('button', { name: 'Reprogramar' }).click();
+  const operatorRescheduleForm = page.locator('.agenda-reschedule-form');
+  await operatorRescheduleForm.getByLabel('Sede').selectOption(febreroLocation.id);
+  const operatorTargetDate = new Date(`${dateValue}T12:00:00Z`);
+  operatorTargetDate.setUTCDate(operatorTargetDate.getUTCDate() + 7);
+  const operatorTargetDateValue = operatorTargetDate.toISOString().slice(0, 10);
+  await operatorRescheduleForm.getByLabel('Fecha', { exact: true }).fill(operatorTargetDateValue);
+  await operatorRescheduleForm.getByLabel('Horario disponible')
+    .locator(`option[value="${professionalId}|10:00"]`).waitFor({ state: 'attached' });
+  await operatorRescheduleForm.getByLabel('Horario disponible').selectOption(`${professionalId}|10:00`);
+
+  const [operatorMembership] = await sql`select m.user_id, m.role, m.location_id
+    from app.business_members m inner join auth.users u on u.id = m.user_id
+    where m.business_id = ${businessId} and u.email = ${email}`;
+  assert(operatorMembership, 'E2E account has a business membership');
+  assert.equal(operatorMembership.role, 'owner', 'Permission test starts from the owner fixture');
+  operatorMembershipRestore = {
+    userId: operatorMembership.user_id,
+    role: operatorMembership.role,
+    locationId: operatorMembership.location_id,
+  };
+  await sql`update app.business_members set role = 'location_operator', location_id = ${agendaLocation.id}, updated_at = now()
+    where business_id = ${businessId} and user_id = ${operatorMembership.user_id}`;
+
+  await saveWith(operatorRescheduleForm.getByRole('button', { name: 'Guardar cambios' }), '/dashboard');
+  await operatorRescheduleForm.getByText('Solo la cuenta del negocio puede mover turnos a otra sede.').waitFor();
+  const [unchangedOperatorAppointment] = await sql`select location_id, starts_at, version from app.appointments
+    where business_id = ${businessId} and id = ${operatorFixtureAppointment.id}`;
+  assert.equal(unchangedOperatorAppointment.location_id, agendaLocation.id,
+    'Operator cannot bypass the UI to move a booking to another location');
+  assert.equal(unchangedOperatorAppointment.starts_at.getTime(), operatorFixtureAppointment.starts_at.getTime());
+  assert.equal(unchangedOperatorAppointment.version, operatorFixtureAppointment.version);
+
+  await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${febreroLocation.id}`);
+  await page.getByRole('heading', { level: 1, name: 'Agenda diaria' }).waitFor();
+  assert.equal(await page.getByLabel('Filtrar por sede').count(), 0, 'Operators do not get a location selector');
+  await page.locator('.agenda-day-heading').getByText('Urquiza', { exact: false }).waitFor();
+  assert.equal(await page.getByRole('link', { name: 'Horarios', exact: true }).count(), 0,
+    'Operators do not get owner-only navigation');
+  await page.goto(`${base}/dashboard/horarios?sede=${febreroLocation.id}&vista=excepciones`);
+  await page.waitForURL('**/dashboard');
+  await page.getByRole('heading', { level: 1, name: 'Agenda diaria' }).waitFor();
+
+  await sql`update app.business_members set role = ${operatorMembershipRestore.role},
+    location_id = ${operatorMembershipRestore.locationId}, updated_at = now()
+    where business_id = ${businessId} and user_id = ${operatorMembershipRestore.userId}`;
+  operatorMembershipRestore = null;
+
   // Mobile pass
   await page.setViewportSize({ width: 390, height: 844 });
   await noOverflow();
@@ -635,9 +889,17 @@ try {
   }
 
   assert.deepEqual(errors, [], 'No uncaught page errors');
-  console.log('PASS: agenda persistente, turno manual, cobro, asistencia, configuración y responsive.');
+  console.log('PASS: configuración, reservas públicas/privadas, permisos de operador, excepciones, bloqueos, reprogramación multisede y responsive.');
   console.log(JSON.stringify({ locationId, serviceId }));
 } finally {
-  await browser.close();
-  await sql.end({ timeout: 5 });
+  try {
+    if (operatorMembershipRestore) {
+      await sql`update app.business_members set role = ${operatorMembershipRestore.role},
+        location_id = ${operatorMembershipRestore.locationId}, updated_at = now()
+        where business_id = ${businessId} and user_id = ${operatorMembershipRestore.userId}`;
+    }
+  } finally {
+    await browser.close();
+    await sql.end({ timeout: 5 });
+  }
 }

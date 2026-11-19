@@ -42,7 +42,7 @@ Después de provisionar el usuario runtime y actualizar `DATABASE_URL`:
 npm run db:ping
 ```
 
-El cliente de aplicación está en `src/server/db/client.ts`. `getDb()` inicializa la conexión de forma diferida, utiliza TLS y deshabilita prepared statements para el pooler transaccional. Rechaza conexiones runtime con el usuario `postgres`. Los casos de uso deben autorizar al usuario y acotar todas las consultas por negocio.
+El cliente de aplicación está en `src/server/db/client.ts`. `getDb()` inicializa la conexión de forma diferida, utiliza TLS y habilita prepared statements solo cuando `DATABASE_URL` usa el session pooler o conexión directa (5432); en el transaction pooler (6543) los deshabilita para evitar errores del pooler. Rechaza conexiones runtime con el usuario `postgres`. Los casos de uso deben autorizar al usuario y acotar todas las consultas por negocio.
 
 Con el proyecto de desarrollo seleccionado mediante `DATABASE_MIGRATION_URL` en `.env.local`, el comando explícito es:
 

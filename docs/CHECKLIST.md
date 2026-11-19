@@ -1,13 +1,13 @@
 # Turnow — checklist de pendientes
 
-**Actualizado:** 16 de noviembre de 2026
+**Actualizado:** 18 de noviembre de 2026
 **Propósito:** tener a mano el estado y los próximos pasos del producto. Las casillas marcan trabajo pendiente, no tareas ya realizadas.
 
 ## Estado actual
 
 - [x] Proyecto Next.js/TypeScript inicializado y prototipo visual existente.
 - [x] Documentos base creados: `docs/PRODUCT.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md` y `docs/DATA_MODEL.md`.
-- [x] Esquema de 19 tablas y seis migraciones (`0000`–`0005`) aplicadas a Supabase de desarrollo.
+- [x] Esquema y migraciones (`0000`–`0009`) aplicadas a Supabase de desarrollo.
 - [x] Rol runtime `turnow_app` conectado con permisos limitados; `db:ping` verificado en runtime y migración.
 - [x] Restricciones de integridad de agenda, snapshots de reservas y bloqueo asesorado por negocio.
 - [x] Soporte de varias sedes: `locations`, `professional_locations`, agendas y reservas por sede, y protección contra solapamientos de un profesional entre sedes.
@@ -20,7 +20,7 @@
 - [x] El dueño ingresa con Supabase Auth y llega a `/dashboard` con alcance de negocio.
 - [x] Panel del dueño persistido y validado: sedes, servicios, profesionales, horarios y reglas, con recorrido E2E y revisión visual.
 - [x] Editor de textos, contacto, redes e identidad de la página pública implementado; queda oculto para el MVP con `NEXT_PUBLIC_PAGE_EDITOR_ENABLED=false` y se retoma después del piloto.
-- [ ] Todavía no hay recorrido de reservas conectado a datos reales ni agenda operativa.
+- [x] Agenda operativa conectada a datos reales; la página pública permite reservar y cancelar con código privado.
 - [ ] Falta configurar SMTP propio y probar recuperación de contraseña. Las tres cuentas operativas de desarrollo ya están creadas y vinculadas por sede.
 
 ## 1. Cerrar decisiones de producto
@@ -46,13 +46,13 @@
   - [x] Selección de servicio, profesional, fecha y horario en la sede elegida.
   - [x] Datos, revisión y confirmación de reserva con sede y profesional.
   - [x] Cancelación con código privado.
-  - [ ] Inicio del panel y agenda del dueño con filtro por sede.
+  - [x] Inicio del panel y agenda del dueño con filtro por sede.
   - [x] Configuración del negocio, sedes, servicios, profesionales y horarios.
 - [ ] Definir cómo se muestra una sede en un enlace directo y cómo se permite cambiarla sin perder el recorrido.
-- [ ] Resolver navegación del panel en móvil y escritorio; definir lista cronológica móvil para agenda y vista general multisede.
+- [x] Resolver navegación del panel en móvil y escritorio; definir lista cronológica móvil para agenda y vista general multisede.
 - [ ] Acordar identidad visual de Turnow y sistema base: tipografía, color, espaciado, controles, estados y componentes.
-- [ ] Definir cómo se personaliza la marca de cada negocio sin permitir estilos arbitrarios.
-- [ ] Diseñar estados vacíos, carga, error, sin disponibilidad, conflicto, guardado y éxito.
+- [POSTERGADO] Definir cómo se personaliza la marca de cada negocio sin permitir estilos arbitrarios.
+- [] Diseñar estados vacíos, carga, error, sin disponibilidad, conflicto, guardado y éxito.
 - [ ] Revisar accesibilidad: teclado, foco, contraste, etiquetas, lectores de pantalla, zoom y movimiento reducido.
 - [ ] Probar el prototipo con al menos dos identidades de negocio y validar las pantallas de referencia.
 - [ ] Actualizar `docs/DESIGN.md` con decisiones y flujos acordados.
@@ -92,11 +92,11 @@
 
 ## 5. Construir el frontend con datos simulados y validarlo
 
-- [ ] Convertir el diseño aprobado en componentes y pantallas responsive, inicialmente con datos de ejemplo.
-- [ ] Completar primero la página pública, el selector de sede y la estructura del panel sin lógica de reserva real.
-- [ ] Implementar las interacciones visuales y los estados definidos en diseño.
+- [x] Convertir el diseño aprobado en componentes y pantallas responsive, inicialmente con datos de ejemplo.
+- [x] Completar primero la página pública, el selector de sede y la estructura del panel sin lógica de reserva real.
+- [x] Implementar las interacciones visuales y los estados definidos en diseño.
 - [ ] Verificar contenidos largos, falta de logo/foto, datos opcionales vacíos, sedes sin dirección y distintos tamaños de pantalla.
-- [ ] Hacer revisión visual y de accesibilidad en navegador.
+- [x] Hacer revisión visual y de accesibilidad en navegador.
 - [ ] Validar tareas con potenciales clientes y dueños; registrar problemas antes de conectar persistencia.
 
 **Criterio de cierre:** los usuarios pueden recorrer el prototipo y entender las acciones sin explicación externa.
@@ -109,7 +109,7 @@
 - [x] Crear y editar servicios, duración, precio y visibilidad (catálogo compartido entre sedes).
 - [x] Crear y editar profesionales y servicios que ofrecen.
 - [x] Configurar horarios de cada sede y horarios independientes por profesional en cada sede, incluidos turnos partidos.
-- [ ] Configurar excepciones, ausencias, márgenes, intervalos y reglas de reserva/cancelación.
+- [x] Configurar excepciones de sede y bloqueos de profesionales con confirmación si afectan turnos; las reglas de reserva/cancelación se editan desde Configuración.
 - [x] Añadir guardado explícito, estados de éxito y previsualización de textos públicos; el editor queda oculto para el MVP y los impactos sobre reservas se completarán con la agenda.
 - [x] Implementar la página pública por slug con datos persistidos, sedes/servicios/profesionales activos y habilitación explícita del dueño.
 - [ ] Probar permisos y aislamiento por negocio y sede para cada operación, incluyendo parámetros manipulados por el cliente.
@@ -126,7 +126,7 @@
 - [x] Hacer idempotente la reserva pública mediante clave y hash de solicitud; el E2E repite exactamente la acción y comprueba que no duplica el turno.
 - [x] Crear código privado aleatorio de alta entropía, hash de búsqueda, cifrado AES-256-GCM para recuperación idempotente y límite persistente de intentos.
 - [x] Implementar consulta/cancelación con confirmación explícita, plazo contractual, estado repetido y liberación de la ocupación.
-- [ ] Completar agenda del dueño con reprogramación entre sedes y bloqueos manuales; la agenda diaria, alta manual, cancelación, reprogramación en sede, pagos y estados atendida/ausente ya existen.
+- [x] Completar agenda del dueño con reprogramación entre sedes y bloqueos manuales; el E2E valida snapshots, ocupación, eventos y marca “Fuera de horario”.
 - [ ] Completar prueba de dos clientes simultáneos con claves de idempotencia distintas; ya se verificaron el reintento idempotente y el rechazo de un slot enviado después de ocuparse.
 - [x] Probar que cambios de catálogo y reglas no alteran snapshots confirmados.
 - [x] Conectar reserva, confirmación y cancelación a la interfaz; E2E cubre escritorio/móvil, estados principales y reserva con “Cualquier profesional”.
@@ -157,7 +157,7 @@
 ## Orden sugerido inmediato
 
 1. [x] Crear y confirmar las cuentas Auth operativas por sede y vincular sus membresías.
-2. [x] Confirmar el E2E actualizado de configuración y agenda contra Supabase: alta por disponibilidad, turno persistido, cobro, asistencia y responsive.
+2. [x] Confirmar el E2E de configuración y agenda contra Supabase, incluidas excepciones, bloqueos y reprogramación multisede.
 3. [x] Implementar reserva pública idempotente y cancelación con código privado sobre el motor compartido; E2E completo contra Supabase.
 4. [x] Añadir publicación por slug con habilitación explícita del dueño; el negocio real sigue deshabilitado hasta su aprobación.
 5. [ ] Completar SMTP, recuperación de contraseña, despliegue y operación del piloto.
