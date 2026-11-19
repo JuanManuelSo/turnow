@@ -17,6 +17,12 @@ Staging sirve para probar la aplicación con datos ficticios y medir el comporta
 3. Configurar variables del proyecto solo para los entornos necesarios (Preview/Production). Nunca incluir secretos en GitHub, archivos versionados ni URLs de Preview.
 4. Fijar la región de funciones de Vercel cerca de Supabase y validar la latencia desde ubicaciones relevantes para los usuarios.
 
+## Métricas web de Vercel
+
+El layout raíz incluye Vercel Web Analytics y Speed Insights únicamente cuando `VERCEL_ENV=production`. Por eso, la app recoge datos en el despliegue estable de staging (que Vercel clasifica como Production) y los omite en desarrollo local y Preview Deployments.
+
+Para recibir datos, abrir el proyecto en Vercel y habilitar **Web Analytics** y **Speed Insights** desde sus secciones del dashboard. Tras desplegar, navegar por las rutas públicas y el panel; los informes pueden tardar en mostrar datos y Web Vitals se acumulan con visitas reales. No se envían nombres, teléfonos ni detalles de reservas como eventos personalizados. Revisar el aviso de privacidad aplicable antes de invitar usuarios externos.
+
 ## 3. Variables en Vercel
 
 Valores y secretos deben pertenecer exclusivamente al proyecto Supabase de staging:

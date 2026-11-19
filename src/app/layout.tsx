@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { business } from "@/config/business";
 import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/500.css";
@@ -13,9 +15,19 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const enableVercelMetrics = process.env.VERCEL_ENV === "production";
+
   return (
     <html lang="es-AR">
-      <body>{children}</body>
+      <body>
+        {children}
+        {enableVercelMetrics && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
+      </body>
     </html>
   );
 }
