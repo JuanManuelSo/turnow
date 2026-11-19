@@ -1,0 +1,49 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(15 28 43 / 55%);
+}
+
+.surface {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 640px);
+  max-height: calc(100dvh - 48px);
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--panel-line);
+  border-radius: 12px;
+  background: var(--panel-surface);
+  color: var(--panel-ink);
+  box-shadow: 0 20px 64px rgb(15 28 43 / 24%);
+  animation: enter 180ms ease-out;
+}
+
+.surface > header { flex-shrink: 0; }
+.content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .backdrop { align-items: flex-end; padding: 0; }
+  .surface { width: 100%; max-height: 92dvh; border-radius: 16px 16px 0 0; animation-name: sheet-enter; }
+  .content { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+
+@keyframes sheet-enter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface { animation: none; }
+}

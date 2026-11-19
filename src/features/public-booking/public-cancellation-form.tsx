@@ -8,6 +8,12 @@ import {
   type PublicCancellationLookup,
 } from "@/app/[businessSlug]/actions";
 import { ConfirmationDialog } from "@/components/ui";
+import type { PageTheme } from "@/server/db/schema";
+import {
+  PublicPageFooter,
+  PublicPageHeader,
+  publicPageStyle,
+} from "./public-page-chrome";
 
 function statusText(status: string) {
   if (status === "cancelled") return "Este turno ya está cancelado.";
@@ -19,9 +25,11 @@ function statusText(status: string) {
 export function PublicCancellationForm({
   businessSlug,
   businessName,
+  theme,
 }: {
   businessSlug: string;
   businessName: string;
+  theme: PageTheme | null;
 }) {
   const [code, setCode] = useState("");
   const [result, setResult] = useState<PublicCancellationLookup | null>(null);
@@ -45,29 +53,26 @@ export function PublicCancellationForm({
   }
 
   const appointment = result?.appointment;
+  const isReferenceBusiness = businessSlug === "peluqueria-de-hombres";
+  const pageStyle = publicPageStyle(theme ?? {
+    schema_version: 1,
+    palette: {},
+    heading_font: "manrope",
+    body_font: "manrope",
+  }, isReferenceBusiness);
   return (
-    <main className="pb-cancellation-page flex min-h-screen flex-col bg-[#f7f7f4] text-[#202c42]">
-      <header className="pb-site-header flex h-[78px] items-center justify-between border-b border-[#e0e2df] bg-[#f7f7f4] px-[clamp(20px,6vw,88px)] max-[560px]:h-[66px] max-[560px]:px-[18px]">
-        <a
-          href={`/${businessSlug}`}
-          className="pb-wordmark flex items-center gap-2.5 text-[1.06rem] font-extrabold tracking-tight no-underline max-[560px]:text-[.94rem]"
-        >
-          {businessName}
-          <span className="border-l border-[#c9cecf] pl-2.5 text-[.67rem] font-bold uppercase tracking-[.12em] text-[#68727d]">
-            Turnos
-          </span>
-        </a>
-        <a
-          href={`/${businessSlug}`}
-          className="pb-header-link flex min-h-11 items-center text-sm font-bold text-[#244e84] no-underline max-[560px]:text-[.77rem]"
-        >
-          Volver a reservar
-        </a>
-      </header>
+    <main
+      className="pb-cancellation-page flex min-h-screen flex-col bg-[var(--pb-page-background)] text-[var(--pb-page-text)]"
+      style={pageStyle}
+    >
+      <PublicPageHeader
+        businessSlug={businessSlug}
+        businessName={businessName}
+        isReferenceBusiness={isReferenceBusiness}
+        actionHref={`/${businessSlug}`}
+        actionLabel="Volver a reservar"
+      />
       <section className="pb-cancel-card mx-auto my-[clamp(36px,7vw,92px)] w-[calc(100%_-_40px)] max-w-[620px] flex-1 max-[560px]:my-[38px] max-[560px]:w-[calc(100%_-_32px)]">
-        <p className="pb-eyebrow mb-3.5 text-xs font-extrabold tracking-[.13em] text-[#a32e3b] uppercase">
-          Gestión de reserva
-        </p>
         <h1 className="max-w-[650px] text-[clamp(2.3rem,5vw,3.6rem)] leading-[1.03] tracking-[-.065em]">
           Consultá o cancelá tu turno
         </h1>
@@ -204,10 +209,10 @@ export function PublicCancellationForm({
           ¿Perdiste el código? Comunicate directamente con {businessName}.
         </p>
       </section>
-      <footer className="pb-footer flex min-h-[76px] items-center justify-between gap-4 border-t border-[#e0e2df] px-[clamp(20px,6vw,88px)] py-[18px] text-xs text-[#65717e] max-[560px]:flex-wrap max-[560px]:justify-start max-[560px]:gap-x-5 max-[560px]:px-[18px]">
-        <span className="font-extrabold text-[#34465b]">{businessName}</span>
-        <span>Reservas con Turnow</span>
-      </footer>
+      <PublicPageFooter
+        businessName={businessName}
+        isReferenceBusiness={isReferenceBusiness}
+      />
     </main>
   );
 }

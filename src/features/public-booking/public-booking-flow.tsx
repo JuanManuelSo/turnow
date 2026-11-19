@@ -14,8 +14,6 @@ import {
   MessageCircle,
   Phone,
 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
 import { business as referenceBusiness } from "@/config/business";
 import type { PageTheme } from "@/server/db/schema";
 import type {
@@ -25,6 +23,11 @@ import type {
 } from "./public-booking-types";
 import { PublicBookingWizard } from "./public-booking-wizard";
 import { money } from "./public-booking-utils";
+import {
+  PublicPageFooter,
+  PublicPageHeader,
+  publicPageStyle,
+} from "./public-page-chrome";
 
 export function PublicBookingPage({
   businessSlug,
@@ -94,9 +97,6 @@ export function PublicBookingPage({
     requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
   }
 
-  const palette = theme.palette;
-  const safeColor = (value: string | undefined, fallback: string) =>
-    value && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(value) ? value : fallback;
   const socialTargets = [
     { key: "instagram", label: "Instagram" },
     { key: "facebook", label: "Facebook" },
@@ -198,23 +198,7 @@ export function PublicBookingPage({
       </>
     );
   }
-  const pageStyle = {
-    "--pb-page-background": isReferenceBusiness
-      ? "#f4f6f9"
-      : safeColor(palette.background, "#f7f7f4"),
-    "--pb-page-surface": safeColor(palette.surface, "#ffffff"),
-    "--pb-page-text": isReferenceBusiness
-      ? "#142b49"
-      : safeColor(palette.text, "#202c42"),
-    "--pb-page-muted": safeColor(palette.text_secondary, "#596879"),
-    "--pb-page-brand": isReferenceBusiness
-      ? "#af2433"
-      : safeColor(palette.brand, "#a32e3b"),
-    "--pb-page-brand-strong": isReferenceBusiness
-      ? "#8f1c29"
-      : "color-mix(in srgb, var(--pb-page-brand) 86%, #000)",
-    "--pb-page-on-brand": safeColor(palette.on_brand, "#ffffff"),
-  } as CSSProperties;
+  const pageStyle = publicPageStyle(theme, isReferenceBusiness);
   const bookingStyle = {
     ...pageStyle,
     "--brand": "var(--pb-page-brand)",
@@ -300,35 +284,13 @@ export function PublicBookingPage({
         </section>
       ) : (
         <>
-          <header className="flex min-h-[88px] items-center justify-between border-t-4 border-t-[var(--pb-page-brand)] border-b border-[#d5dfeb] bg-[var(--pb-page-background)] px-[clamp(20px,5vw,72px)] max-[600px]:min-h-[72px] max-[600px]:px-4">
-            <a
-              href={`/${businessSlug}`}
-              className="flex min-h-11 items-center gap-3 text-[1.05rem] font-extrabold tracking-tight text-[var(--pb-page-text)] no-underline"
-            >
-              {isReferenceBusiness ? (
-                <Image
-                  src="/brand-silhouette.svg"
-                  alt=""
-                  width={46}
-                  height={52}
-                />
-              ) : (
-                <span
-                  className="grid size-12 shrink-0 place-items-center rounded-sm bg-[var(--pb-page-brand)] text-xl font-extrabold text-[var(--pb-page-on-brand)]"
-                  aria-hidden="true"
-                >
-                  {businessName.trim().charAt(0).toLocaleUpperCase()}
-                </span>
-              )}
-              <span>{businessName}</span>
-            </a>
-            <a
-              href={`/${businessSlug}/cancelar`}
-              className="min-h-11 inline-flex items-center text-sm font-semibold text-[#17385f] underline underline-offset-4"
-            >
-              Cancelar turno
-            </a>
-          </header>
+          <PublicPageHeader
+            businessSlug={businessSlug}
+            businessName={businessName}
+            isReferenceBusiness={isReferenceBusiness}
+            actionHref={`/${businessSlug}/cancelar`}
+            actionLabel="Cancelar turno"
+          />
 
           <section className="mx-auto grid min-h-[calc(100svh-80px)] max-w-[1440px] grid-cols-[minmax(0,1.12fr)_minmax(300px,.88fr)] items-center gap-[clamp(32px,6vw,88px)] px-[clamp(20px,5vw,72px)] py-[clamp(56px,7vw,96px)] max-[800px]:grid-cols-1 max-[800px]:gap-9 max-[600px]:gap-7 max-[600px]:px-5 max-[600px]:py-8">
             <div className="max-w-[690px]">
@@ -582,22 +544,10 @@ export function PublicBookingPage({
         </>
       )}
 
-      <footer className="flex min-h-[88px] flex-wrap items-center justify-between gap-4 bg-[#142b49] px-[clamp(20px,5vw,72px)] py-4 text-xs text-[#d3dfeb] max-[600px]:px-4">
-        <span>
-          {businessName}
-          {isReferenceBusiness ? ` · ${referenceBusiness.city}` : ""}
-        </span>
-        <span>
-          Reservas simples con{" "}
-          <strong className="text-base text-white">turnow.</strong>
-        </span>
-        <Link
-          href="/dashboard"
-          className="min-h-11 inline-flex items-center font-bold text-white"
-        >
-          Panel del negocio ↗
-        </Link>
-      </footer>
+      <PublicPageFooter
+        businessName={businessName}
+        isReferenceBusiness={isReferenceBusiness}
+      />
     </main>
   );
 }

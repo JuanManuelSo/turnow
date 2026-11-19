@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq, gt, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { requireSession } from '@/server/auth/access';
 import { getDb } from '@/server/db/client';
@@ -12,6 +12,7 @@ import {
 } from '@/server/db/schema';
 import { localDateTimeToInstant } from '@/lib/timezone';
 import { getAvailableSlots } from '@/server/business/availability';
+import { combineAnyProfessionalSlots } from '@/server/business/availability-engine';
 
 export type AgendaActionState = { error?: string; success?: string; fields?: Record<string, string> };
 
@@ -297,8 +298,120 @@ export async function updateAppointmentStatus(formData: FormData): Promise<void>
   revalidatePath('/dashboard');
 }
 
+export type RescheduleOptionsResult = {
+  error?: string;
+  locations: Array<{ id: string; name: string }>;
+  professionals: Array<{ id: string; name: string }>;
+  slots: Array<{ time: string; professionalId: string; professionalName: string }>;
+};
+
+export async function getRescheduleOptions(input: {
+  appointmentId: string;
+  locationId?: string;
+  professionalId?: string;
+  date: string;
+}): Promise<RescheduleOptionsResult> {
+  const access = await requireSession();
+  const empty = { locations: [], professionals: [], slots: [] };
+  const parsed = z.object({
+    appointmentId: z.uuid(),
+    locationId: z.uuid().optional(),
+    professionalId: z.union([z.uuid(), z.literal('any')]).optional(),
+    date: z.iso.date(),
+  }).safeParse(input);
+  if (!parsed.success) return { ...empty, error: 'Revisá la sede, la fecha y el profesional.' };
+
+  const db = getDb();
+  const [appointment] = await db.select({
+    id: appointments.id, locationId: appointments.locationId,
+    professionalId: appointments.professionalId, serviceId: appointments.serviceId,
+    duration: appointments.durationMinutesSnapshot, buffer: appointments.bufferAfterMinutesSnapshot,
+    status: appointments.status,
+  }).from(appointments).where(and(
+    eq(appointments.businessId, access.membership.businessId),
+    eq(appointments.id, parsed.data.appointmentId),
+  )).limit(1);
+  if (!appointment || appointment.status !== 'confirmed') {
+    return { ...empty, error: 'Este turno ya no se puede reprogramar.' };
+  }
+  if (access.membership.role === 'location_operator' && appointment.locationId !== access.membership.locationId) {
+    return { ...empty, error: 'No tenés permiso para cambiar este turno.' };
+  }
+
+  const locationRows = await db.select({ id: locations.id, name: locations.name })
+    .from(locations)
+    .where(and(
+      eq(locations.businessId, access.membership.businessId),
+      eq(locations.isActive, true),
+    ))
+    .orderBy(asc(locations.name));
+  const allowedLocations = access.membership.role === 'owner'
+    ? locationRows
+    : locationRows.filter(location => location.id === access.membership.locationId);
+
+  const targetLocationId = parsed.data.locationId ?? appointment.locationId;
+  if (!allowedLocations.some(location => location.id === targetLocationId)) {
+    return {
+      locations: allowedLocations, professionals: [], slots: [],
+      error: access.membership.role === 'owner'
+        ? 'Elegí una sede activa.'
+        : 'Solo la cuenta del negocio puede mover turnos a otra sede.',
+    };
+  }
+
+  const professionalRows = await db.select({ id: professionals.id, name: professionals.displayName })
+    .from(professionals)
+    .innerJoin(professionalLocations, and(
+      eq(professionalLocations.businessId, professionals.businessId),
+      eq(professionalLocations.professionalId, professionals.id),
+      eq(professionalLocations.locationId, targetLocationId),
+      eq(professionalLocations.isActive, true),
+    ))
+    .innerJoin(professionalServices, and(
+      eq(professionalServices.businessId, professionals.businessId),
+      eq(professionalServices.professionalId, professionals.id),
+      eq(professionalServices.serviceId, appointment.serviceId),
+      eq(professionalServices.isActive, true),
+    ))
+    .where(and(
+      eq(professionals.businessId, access.membership.businessId),
+      eq(professionals.isActive, true),
+    ))
+    .orderBy(asc(professionals.displayName));
+
+  const slots = await getAvailableSlots({
+    businessId: access.membership.businessId,
+    locationId: targetLocationId,
+    serviceId: appointment.serviceId,
+    date: parsed.data.date,
+    ...(parsed.data.professionalId && parsed.data.professionalId !== 'any'
+      ? { professionalId: parsed.data.professionalId }
+      : {}),
+    excludeAppointmentId: appointment.id,
+    durationMinutesOverride: appointment.duration,
+    bufferMinutesOverride: appointment.buffer,
+    allowInactiveService: true,
+  });
+  const mappedSlots = slots.map(slot => ({
+    time: slot.time,
+    professionalId: slot.professionalId,
+    professionalName: slot.professionalName,
+    workloadMinutes: slot.workloadMinutes,
+  }));
+
+  return {
+    locations: allowedLocations,
+    professionals: professionalRows,
+    slots: parsed.data.professionalId && parsed.data.professionalId !== 'any'
+      ? mappedSlots
+      : combineAnyProfessionalSlots(mappedSlots),
+  };
+}
+
 const rescheduleSchema = z.object({
   appointmentId: z.string().uuid(),
+  locationId: z.string().uuid('Elegí una sede válida.'),
+  professionalId: z.string().uuid('Elegí un profesional.'),
   date: z.iso.date(),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 });
@@ -306,9 +419,13 @@ const rescheduleSchema = z.object({
 export async function rescheduleAppointment(_previous: AgendaActionState, formData: FormData): Promise<AgendaActionState> {
   const access = await requireSession();
   const parsed = rescheduleSchema.safeParse({
-    appointmentId: text(formData, 'appointmentId'), date: text(formData, 'date'), time: text(formData, 'time'),
+    appointmentId: text(formData, 'appointmentId'),
+    locationId: text(formData, 'locationId'),
+    professionalId: text(formData, 'professionalId'),
+    date: text(formData, 'date'),
+    time: text(formData, 'time'),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Revisá la fecha y la hora.' };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Revisá la sede, la fecha y la hora.' };
 
   try { await getDb().transaction(async tx => {
     await lockBusinessSchedule(tx, access.membership.businessId);
@@ -323,33 +440,67 @@ export async function rescheduleAppointment(_previous: AgendaActionState, formDa
     )).limit(1);
     if (!appointment || appointment.status !== 'confirmed') throw new Error('Este turno ya no se puede reprogramar.');
     if (access.membership.role === 'location_operator' && appointment.locationId !== access.membership.locationId) throw new Error('No tenés permiso para cambiar este turno.');
+    if (access.membership.role === 'location_operator' && parsed.data.locationId !== access.membership.locationId) {
+      throw new Error('Solo la cuenta del negocio puede mover turnos a otra sede.');
+    }
+
+    const [targetLocation] = await tx.select({
+      id: locations.id, name: locations.name, address: locations.addressText,
+      timezone: locations.timezone, active: locations.isActive,
+    }).from(locations).where(and(
+      eq(locations.businessId, access.membership.businessId),
+      eq(locations.id, parsed.data.locationId),
+    )).limit(1);
+    if (!targetLocation?.active) throw new Error('La sede elegida no está disponible.');
+
+    const [targetProfessional] = await tx.select({
+      id: professionals.id, name: professionals.displayName,
+    }).from(professionals)
+      .innerJoin(professionalLocations, and(
+        eq(professionalLocations.businessId, professionals.businessId),
+        eq(professionalLocations.professionalId, professionals.id),
+        eq(professionalLocations.locationId, targetLocation.id),
+        eq(professionalLocations.isActive, true),
+      ))
+      .innerJoin(professionalServices, and(
+        eq(professionalServices.businessId, professionals.businessId),
+        eq(professionalServices.professionalId, professionals.id),
+        eq(professionalServices.serviceId, appointment.serviceId),
+        eq(professionalServices.isActive, true),
+      ))
+      .where(and(
+        eq(professionals.businessId, access.membership.businessId),
+        eq(professionals.id, parsed.data.professionalId),
+        eq(professionals.isActive, true),
+      )).limit(1);
+    if (!targetProfessional) throw new Error('Ese profesional no ofrece el servicio en la sede elegida.');
 
     let startsAt: Date;
-    try { startsAt = localDateTimeToInstant(parsed.data.date, parsed.data.time, appointment.timezone); }
+    try { startsAt = localDateTimeToInstant(parsed.data.date, parsed.data.time, targetLocation.timezone); }
     catch (error) { throw error instanceof Error ? error : new Error('Elegí una fecha y hora válidas.'); }
     if (startsAt.getTime() <= Date.now() - 60_000) throw new Error('Elegí un horario futuro.');
     const availableSlots = await getAvailableSlots({
       businessId: access.membership.businessId,
-      locationId: appointment.locationId,
+      locationId: targetLocation.id,
       serviceId: appointment.serviceId,
       date: parsed.data.date,
-      professionalId: appointment.professionalId,
+      professionalId: targetProfessional.id,
       excludeAppointmentId: appointment.id,
       durationMinutesOverride: appointment.duration,
       bufferMinutesOverride: appointment.buffer,
       allowInactiveService: true,
     }, tx);
     const localTime = new Intl.DateTimeFormat('en-GB', {
-      timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      timeZone: targetLocation.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
     }).format(startsAt);
     if (!availableSlots.some(slot => slot.time === localTime && slot.startsAt.getTime() === startsAt.getTime())) {
-      throw new Error('Ese horario no está disponible dentro del horario configurado. Elegí otro momento.');
+      throw new Error('Ese horario no está disponible dentro del horario configurado de la sede. Elegí otro momento.');
     }
     const endsAt = new Date(startsAt.getTime() + appointment.duration * 60_000);
     const occupiedUntil = new Date(endsAt.getTime() + appointment.buffer * 60_000);
     const [conflict] = await tx.select({ id: calendarOccupancies.id }).from(calendarOccupancies).where(and(
       eq(calendarOccupancies.businessId, access.membership.businessId),
-      eq(calendarOccupancies.professionalId, appointment.professionalId),
+      eq(calendarOccupancies.professionalId, targetProfessional.id),
       eq(calendarOccupancies.isActive, true),
       sql`${calendarOccupancies.appointmentId} is distinct from ${appointment.id}`,
       lt(calendarOccupancies.startsAt, occupiedUntil), gt(calendarOccupancies.endsAt, startsAt),
@@ -357,17 +508,48 @@ export async function rescheduleAppointment(_previous: AgendaActionState, formDa
     if (conflict) throw new Error('Ese horario ya está ocupado para este profesional.');
 
     const version = appointment.version + 1;
-    await tx.update(appointments).set({ startsAt, endsAt, version, updatedAt: new Date() }).where(and(
+    await tx.execute(sql`select set_config('app.allow_appointment_reschedule', 'on', true)`);
+    await tx.update(appointments).set({
+      locationId: targetLocation.id,
+      professionalId: targetProfessional.id,
+      startsAt,
+      endsAt,
+      timezoneSnapshot: targetLocation.timezone,
+      locationNameSnapshot: targetLocation.name,
+      locationAddressSnapshot: targetLocation.address,
+      professionalNameSnapshot: targetProfessional.name,
+      version,
+      updatedAt: new Date(),
+    }).where(and(
       eq(appointments.businessId, access.membership.businessId), eq(appointments.id, appointment.id),
     ));
-    await tx.update(calendarOccupancies).set({ startsAt, endsAt: occupiedUntil, updatedAt: new Date() }).where(and(
-      eq(calendarOccupancies.businessId, access.membership.businessId), eq(calendarOccupancies.appointmentId, appointment.id),
+    await tx.update(calendarOccupancies).set({
+      locationId: targetLocation.id,
+      professionalId: targetProfessional.id,
+      startsAt,
+      endsAt: occupiedUntil,
+      updatedAt: new Date(),
+    }).where(and(
+      eq(calendarOccupancies.businessId, access.membership.businessId),
+      eq(calendarOccupancies.appointmentId, appointment.id),
     ));
     await tx.insert(appointmentEvents).values({
       businessId: access.membership.businessId, appointmentId: appointment.id,
       eventType: 'rescheduled', actorType: actorType(access.membership.role), actorUserId: access.user.id,
       appointmentVersion: version,
-      changes: { from: appointment.startsAt.toISOString(), to: startsAt.toISOString() },
+      changes: {
+        from: {
+          startsAt: appointment.startsAt.toISOString(),
+          locationId: appointment.locationId,
+          professionalId: appointment.professionalId,
+        },
+        to: {
+          startsAt: startsAt.toISOString(),
+          locationId: targetLocation.id,
+          professionalId: targetProfessional.id,
+          timezone: targetLocation.timezone,
+        },
+      },
     });
   }); } catch (error) {
     return { error: error instanceof Error ? error.message : 'No se pudo reprogramar el turno.' };

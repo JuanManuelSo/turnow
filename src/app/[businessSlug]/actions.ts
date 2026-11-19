@@ -8,12 +8,12 @@ import { localDateTimeToInstant } from '@/lib/timezone';
 import { getDb } from '@/server/db/client';
 import { lockBusinessSchedule } from '@/server/db/locks';
 import { getAvailableSlots } from '@/server/business/availability';
-import { consumePublicAttempt } from '@/server/business/public-rate-limit';
+import { consumePublicAttempt, consumePublicAvailabilityAttempt } from '@/server/business/public-rate-limit';
 import {
   createCancellationCode, decryptCancellationCode, encryptCancellationCode,
   hashBookingRequest, hashCancellationCode, isWithinCancellationWindow,
 } from '@/server/business/booking-security';
-import { getPublicBusinessBySlug } from '@/server/business/public-business';
+import { getPublicBookingBusiness, getPublicBusinessIdBySlug } from '@/server/business/public-business';
 import {
   appointmentAccessCodes, appointmentEvents, appointments, bookingRequests,
   businessSettings, businesses, calendarOccupancies, locations,
@@ -54,21 +54,25 @@ const availabilitySchema = z.object({
 export async function getPublicAvailability(businessSlug: string, input: unknown) {
   const parsed = availabilitySchema.safeParse(input);
   if (!parsed.success) return { slots: [], error: 'Revisá la sede, servicio, profesional y fecha.' };
-  const business = await getPublicBusinessBySlug(businessSlug);
-  if (!business?.publicBookingEnabled) return { slots: [], error: 'Las reservas online no están disponibles por el momento.' };
   const requestHeaders = await headers();
-  const permitted = await consumePublicAttempt({
-    businessId: business.id, scope: 'lookup', identifier: `availability:${clientIdentifier(requestHeaders)}`, limit: 120, windowMinutes: 60,
+  const business = await consumePublicAvailabilityAttempt({
+    slug: businessSlug,
+    identifier: `availability:${clientIdentifier(requestHeaders)}`,
+    limit: 120,
+    windowMinutes: 60,
   });
-  if (!permitted) return { slots: [], error: 'Hiciste muchas consultas seguidas. Esperá un momento y probá de nuevo.' };
+  if (!business) return { slots: [], error: 'Las reservas online no están disponibles por el momento.' };
+  if (!business.permitted) return { slots: [], error: 'Hiciste muchas consultas seguidas. Esperá un momento y probá de nuevo.' };
   const slots = await getAvailableSlots({
-    businessId: business.id,
+    businessId: business.businessId,
     locationId: parsed.data.locationId,
     serviceId: parsed.data.serviceId,
     date: parsed.data.date,
     professionalId: parsed.data.professionalId === 'any' ? null : parsed.data.professionalId,
   });
-  return { slots: slots.map(slot => ({ time: slot.time })) };
+  const uniqueSlots = new Map<string, { time: string }>();
+  for (const slot of slots) uniqueSlots.set(slot.time, { time: slot.time });
+  return { slots: [...uniqueSlots.values()] };
 }
 
 const bookingSchema = z.object({
@@ -129,7 +133,7 @@ export async function createPublicBooking(
   ].map(key => [key, text(formData, key)])));
   if (!parsed.success) return { error: 'Revisá los datos marcados y volvé a intentar.', fields: fieldErrors(parsed.error.issues) };
   const input = parsed.data;
-  const business = await getPublicBusinessBySlug(businessSlug);
+  const business = await getPublicBookingBusiness(businessSlug);
   if (!business?.publicBookingEnabled) return { error: 'Las reservas online no están disponibles por el momento.' };
 
   const requestHeaders = await headers();
@@ -314,7 +318,7 @@ async function permittedCodeAttempt(businessId: string, scope: 'lookup' | 'cance
 export async function lookupPublicBooking(businessSlug: string, rawCode: string): Promise<PublicCancellationLookup> {
   const code = accessCodeSchema.safeParse(rawCode);
   if (!code.success) return { error: 'Revisá el código e intentá de nuevo.' };
-  const business = await getPublicBusinessBySlug(businessSlug, true);
+  const business = await getPublicBusinessIdBySlug(businessSlug, true);
   if (!business) return { error: 'No encontramos una reserva con ese código.' };
   if (!await permittedCodeAttempt(business.id, 'lookup')) return { error: 'Hiciste muchos intentos. Esperá unos minutos y probá de nuevo.' };
   const row = await findPublicAppointment(business.id, code.data);
@@ -325,7 +329,7 @@ export async function lookupPublicBooking(businessSlug: string, rawCode: string)
 export async function cancelPublicBooking(businessSlug: string, rawCode: string): Promise<PublicCancellationLookup> {
   const code = accessCodeSchema.safeParse(rawCode);
   if (!code.success) return { error: 'Revisá el código e intentá de nuevo.' };
-  const business = await getPublicBusinessBySlug(businessSlug, true);
+  const business = await getPublicBusinessIdBySlug(businessSlug, true);
   if (!business) return { error: 'No encontramos una reserva con ese código.' };
   if (!await permittedCodeAttempt(business.id, 'cancel')) return { error: 'Hiciste muchos intentos. Esperá unos minutos y probá de nuevo.' };
   try {

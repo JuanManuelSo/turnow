@@ -31,6 +31,7 @@ export default async function PublicCancellationPage({
     <PublicCancellationForm
       businessSlug={business.slug}
       businessName={business.name}
+      theme={business.theme}
     />
   );
 }

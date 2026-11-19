@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,18 +14,19 @@ import {
   MapPin,
   Plus,
   UserRound,
-  X,
 } from "lucide-react";
 import { Button, FormField, Input, Select } from "@/components/ui";
+import { DailyMetric } from "@/components/dashboard/daily-metric";
+import { ResponsiveDialog } from "@/components/dashboard/responsive-dialog";
 import { formatMoney } from "@/lib/dashboard-format";
 import {
   createManualAppointment,
   recordManualPayment,
-  rescheduleAppointment,
   updateAppointmentStatus,
   type AgendaActionState,
 } from "@/app/dashboard/agenda-actions";
 import { ManualAppointmentForm } from "./manual-appointment-form";
+import { RescheduleForm } from "./reschedule-form";
 
 type Location = {
   id: string;
@@ -51,6 +53,7 @@ type Payment = {
 };
 type Booking = {
   id: string;
+  locationId: string;
   startsAt: Date;
   endsAt: Date;
   customerName: string;
@@ -65,6 +68,7 @@ type Booking = {
   version: number;
   payments: Payment[];
   paidMinor: number;
+  outsideSchedule: boolean;
 };
 type ActionState = AgendaActionState;
 
@@ -105,76 +109,17 @@ function amountInput(value: number | null) {
   return value === null ? "" : (value / 100).toFixed(2);
 }
 
-function useDialogAccessibility(
-  open: boolean,
-  dialogRef: React.RefObject<HTMLElement | null>,
-  onClose: () => void,
-) {
-  const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
-  useEffect(() => {
-    if (!open || !dialogRef.current) return;
-    const dialog = dialogRef.current;
-    const getFocusable = () =>
-      [
-        ...dialog.querySelectorAll<HTMLElement>(
-          "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]",
-        ),
-      ].filter((element) => element.getAttribute("aria-hidden") !== "true");
-    (
-      dialog.querySelector<HTMLElement>("[data-autofocus]") ?? getFocusable()[0]
-    )?.focus();
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeRef.current();
-      }
-      if (event.key !== "Tab") return;
-      const items = getFocusable();
-      if (!items.length) {
-        event.preventDefault();
-        return;
-      }
-      if (event.shiftKey && document.activeElement === items[0]) {
-        event.preventDefault();
-        items.at(-1)?.focus();
-      } else if (!event.shiftKey && document.activeElement === items.at(-1)) {
-        event.preventDefault();
-        items[0]?.focus();
-      }
-    }
-    dialog.addEventListener("keydown", handleKeyDown);
-    return () => dialog.removeEventListener("keydown", handleKeyDown);
-  }, [open, dialogRef]);
-}
-
-function localDateTimeParts(value: Date, timezone: string) {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    })
-      .formatToParts(new Date(value))
-      .map((part) => [part.type, part.value]),
-  );
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}:${parts.minute}`,
-  };
+function StatusSubmit({ children, danger = false }: { children: string; danger?: boolean }) {
+  const { pending } = useFormStatus();
+  return <button className={`agenda-text-action ${danger ? "is-danger" : ""}`} type="submit" disabled={pending} aria-disabled={pending}>
+    {pending ? "Guardando…" : children}
+  </button>;
 }
 
 export function AgendaPage({
   businessName,
   role,
   date,
-  today,
   locations,
   selectedLocation,
   professionals,
@@ -203,7 +148,6 @@ export function AgendaPage({
     null,
   );
   const [creating, setCreating] = useState(false);
-  const createDialogRef = useRef<HTMLElement>(null);
   const [createState, createAction, createPending] = useActionState(
     createManualAppointment,
     emptyState,
@@ -232,7 +176,6 @@ export function AgendaPage({
   useEffect(() => {
     if (createState.success) router.refresh();
   }, [createState.success, router]);
-  useDialogAccessibility(creating, createDialogRef, () => setCreating(false));
   function navigate(nextDate: string, nextLocation = selectedLocation?.id) {
     const query = new URLSearchParams({ fecha: nextDate });
     if (role === "owner" && nextLocation) query.set("sede", nextLocation);
@@ -244,14 +187,11 @@ export function AgendaPage({
     <div className="agenda-page mx-auto w-full max-w-[1440px]">
       <header className="agenda-header mb-6 flex items-end justify-between gap-6 max-[760px]:flex-col max-[760px]:items-start">
         <div>
-          <p className="agenda-eyebrow text-xs font-bold tracking-wider text-[#56657a] uppercase">
-            {businessName} <span className="px-1 text-[#244f82]">·</span> Agenda
-          </p>
           <h1 className="mt-1 text-[clamp(1.8rem,3vw,2.35rem)] leading-[1.12] tracking-[-.045em]">
             Agenda diaria
           </h1>
           <p className="agenda-lede mt-2 text-sm text-[#56657a]">
-            Turnos del equipo, atención y cobros en un mismo lugar.
+            {businessName} · Turnos del equipo, atención y cobros.
           </p>
         </div>
         <Button
@@ -289,46 +229,21 @@ export function AgendaPage({
         </aside>
       )}
 
-      <section
-        className="agenda-summary mb-[18px] grid grid-cols-3 gap-3 max-[760px]:grid-cols-1"
-        aria-label="Resumen del día"
-      >
-        <div className="grid min-h-[86px] grid-cols-[1fr_auto] items-baseline gap-x-3 rounded border border-[#dde3eb] bg-white p-[15px_18px]">
-          <span className="text-xs text-[#56657a]">Turnos del día</span>
-          <strong className="row-span-2 text-[1.75rem] font-extrabold tabular-nums">
-            {appointments.length}
-          </strong>
-          <small className="text-xs text-[#56657a]">
-            {appointments.filter((item) => item.status === "attended").length}{" "}
-            atendidos
-          </small>
-        </div>
-        <div className="grid min-h-[86px] grid-cols-[1fr_auto] items-baseline gap-x-3 rounded border border-[#dde3eb] bg-white p-[15px_18px]">
-          <span className="text-xs text-[#56657a]">Cobrado</span>
-          <strong className="row-span-2 text-lg font-extrabold tabular-nums">
-            {formatMoney(paidTotal, currency)}
-          </strong>
-          <small className="text-xs text-[#56657a]">
-            Pagos cargados manualmente
-          </small>
-        </div>
-        <div className="grid min-h-[86px] grid-cols-[1fr_auto] items-baseline gap-x-3 rounded border border-[#dde3eb] bg-white p-[15px_18px]">
-          <span className="text-xs text-[#56657a]">Saldo previsto</span>
-          <strong className="row-span-2 text-lg font-extrabold tabular-nums">
-            {formatMoney(Math.max(expectedTotal - paidTotal, 0), currency)}
-          </strong>
-          <small className="text-xs text-[#56657a]">
-            Según precios actuales del turno
-          </small>
-        </div>
+        <section
+         className="mb-5 grid grid-cols-1 gap-0 border-y border-border sm:grid-cols-3 sm:gap-3 sm:border-0"
+         aria-label="Resumen del día"
+       >
+         <DailyMetric label="Turnos del día" value={appointments.length} detail={`${appointments.filter((item) => item.status === "attended").length} atendidos`} />
+         <DailyMetric label="Cobrado" value={formatMoney(paidTotal, currency)} detail="Pagos cargados manualmente" />
+         <DailyMetric label="Saldo previsto" value={formatMoney(Math.max(expectedTotal - paidTotal, 0), currency)} detail="Según el precio guardado en cada turno" />
       </section>
 
       <section
         className="agenda-board overflow-hidden rounded border border-[#dde3eb] bg-white"
         aria-label="Calendario de turnos"
       >
-        <div className="agenda-controls flex flex-wrap items-center justify-between gap-4 border-b border-[#dde3eb] p-4">
-          <div className="agenda-date-nav flex items-center gap-2">
+        <div className="agenda-controls">
+          <div className="agenda-date-nav">
             <Button
               variant="secondary"
               aria-label="Día anterior"
@@ -347,16 +262,12 @@ export function AgendaPage({
               aria-label="Fecha de agenda"
               type="date"
               value={date}
-              onChange={(event) => navigate(event.currentTarget.value)}
+               onChange={(event) => { if (event.currentTarget.value) navigate(event.currentTarget.value); }}
             />
-            <Button variant="text" onClick={() => navigate(today)}>
-              Hoy
-            </Button>
           </div>
-          <div className="agenda-filters flex flex-wrap items-center gap-3">
+          <div className="agenda-filters">
             {role === "owner" && locations.length > 1 && (
-              <label className="agenda-filter">
-                <MapPin size={15} aria-hidden="true" />
+              <label className="agenda-filter agenda-filter-location">
                 <span className="sr-only">Sede</span>
                 <Select
                   aria-label="Filtrar por sede"
@@ -373,8 +284,7 @@ export function AgendaPage({
                 </Select>
               </label>
             )}
-            <label className="agenda-filter">
-              <UserRound size={15} aria-hidden="true" />
+            <label className="agenda-filter agenda-filter-professional">
               <span className="sr-only">Profesional</span>
               <Select
                 aria-label="Filtrar por profesional"
@@ -433,13 +343,18 @@ export function AgendaPage({
               </Link>
             )}
           </div>
-        ) : !visibleAppointments.length ? (
+         ) : !visibleAppointments.length && selectedProfessional !== "all" ? (
+           <div className="agenda-empty grid justify-items-center gap-3 px-5 py-12 text-center">
+             <UserRound size={25} aria-hidden="true" />
+             <h3 className="text-base font-bold">No hay turnos con este filtro</h3>
+             <p className="max-w-[48ch] text-sm text-[#56657a]">El equipo tiene {appointments.length} {appointments.length === 1 ? "turno" : "turnos"} en esta fecha. Podés volver a verlos todos.</p>
+             <Button variant="secondary" onClick={() => setSelectedProfessional("all")}>Ver todo el equipo</Button>
+           </div>
+         ) : !visibleAppointments.length ? (
           <div className="agenda-empty grid justify-items-center gap-3 px-5 py-12 text-center">
             <CalendarDays size={25} />
             <h3 className="text-base font-bold">Este día está libre</h3>
-            <p className="max-w-[48ch] text-sm text-[#56657a]">
-              Elegí otra fecha o agregá un turno manualmente.
-            </p>
+             <p className="max-w-[48ch] text-sm text-[#56657a]">Elegí otra fecha o agregá un turno manualmente.</p>
             <Button
               onClick={() => setCreating(true)}
               disabled={!professionals.length || !services.length}
@@ -460,26 +375,31 @@ export function AgendaPage({
                     <strong className="text-[.93rem] font-bold text-[#1b2839]">{clock(booking.startsAt, timezone)}</strong>
                     <span>{clock(booking.endsAt, timezone)}</span>
                   </time>
-                  <button
-                    className={`agenda-appointment flex min-h-16 min-w-0 items-center justify-between gap-[18px] rounded border-l-[3px] px-[15px] py-3 text-left transition hover:-translate-y-px max-[760px]:flex-col max-[760px]:items-start max-[760px]:gap-[9px] max-[760px]:p-[11px] ${booking.status === 'attended' ? 'border-[#327359] bg-[#f0f7f3] hover:bg-[#e8f3ed]' : booking.status === 'no_show' ? 'border-[#9e4850] bg-[#fbf3f3] hover:bg-[#f8e9ea]' : 'border-[#244f82] bg-[#f3f7fb] hover:bg-[#eaf1f8]'}`}
+                   <button
+                     className={`agenda-appointment flex min-h-16 min-w-0 items-center justify-between gap-4 rounded border border-border px-4 py-3 text-left transition-colors max-[760px]:flex-col max-[760px]:items-start max-[760px]:gap-2 max-[760px]:p-3 ${booking.status === 'attended' ? 'bg-success-soft hover:bg-success-soft' : booking.status === 'no_show' ? 'bg-danger-soft hover:bg-danger-soft' : 'bg-brand-soft hover:bg-brand-soft'}`}
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
                   >
                     <span className="agenda-appointment-main grid min-w-0 gap-1">
-                      <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold">{booking.customerName}</strong>
-                      <span className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-[#56657a] max-[520px]:max-w-[58vw]">
+                       <strong className="overflow-visible whitespace-normal break-words text-sm font-bold text-foreground">{booking.customerName}</strong>
+                       <span className="overflow-visible whitespace-normal break-words text-xs leading-relaxed text-muted-foreground">
                         {booking.serviceName} <i className="px-0.5 not-italic text-[#a5afbc]">·</i>{" "}
                         {booking.professionalName}
                       </span>
                     </span>
                     <span className="agenda-appointment-meta flex shrink-0 flex-col items-end gap-1.5 text-[.72rem] text-[#56657a] max-[760px]:flex-row max-[760px]:flex-wrap max-[760px]:items-center">
-                      <span className={`agenda-status rounded-full px-[7px] py-[3px] text-[.66rem] font-bold ${booking.status === 'attended' ? 'bg-[#e8f3ed] text-[#285f49]' : booking.status === 'no_show' ? 'bg-[#f8e9ea] text-[#8a3741]' : 'bg-[#eaf1f8] text-[#244f82]'}`}>
+                         <span className={`agenda-status rounded-full px-2 py-1 text-xs font-bold ${booking.status === 'attended' ? 'bg-success-soft text-success' : booking.status === 'no_show' ? 'bg-danger-soft text-danger' : 'bg-brand-soft text-brand'}`}>
                         {booking.status === "attended"
                           ? "Atendido"
                           : booking.status === "no_show"
                             ? "Ausente"
                             : "Confirmado"}
                       </span>
+                      {booking.outsideSchedule && booking.status === "confirmed" && (
+                         <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">
+                          Fuera de horario
+                        </span>
+                      )}
                       <span>
                         {balance === null
                           ? "Sin precio"
@@ -508,43 +428,7 @@ export function AgendaPage({
       </footer>
 
       {creating && (
-        <div
-          className="agenda-backdrop fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#101d2c]/55 p-5 max-[600px]:items-end max-[600px]:p-0"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setCreating(false);
-          }}
-        >
-          <section
-            ref={createDialogRef}
-            className="agenda-dialog max-h-[min(90svh,900px)] w-full max-w-[680px] overflow-y-auto rounded-lg border border-[#dde3eb] bg-white p-6 shadow-2xl max-[600px]:max-h-[94svh] max-[600px]:rounded-b-none max-[600px]:p-5"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="new-appointment-title"
-            tabIndex={-1}
-          >
-            <header className="flex items-center justify-between gap-4 border-b border-[#dde3eb] pb-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="agenda-dialog-icon grid size-10 shrink-0 place-items-center rounded bg-[#eaf1f8] text-[#244f82]">
-                  <Plus size={18} />
-                </span>
-                <div>
-                  <h2 className="text-lg font-bold" id="new-appointment-title">
-                    Nuevo turno
-                  </h2>
-                  <p className="mt-1 text-sm text-[#56657a]">
-                    Agregalo directamente a la agenda.
-                  </p>
-                </div>
-              </div>
-              <button
-                className="agenda-close grid size-10 shrink-0 place-items-center rounded text-[#56657a] hover:bg-[#f2f4f7]"
-                type="button"
-                aria-label="Cerrar"
-                onClick={() => setCreating(false)}
-              >
-                <X size={19} />
-              </button>
-            </header>
+        <ResponsiveDialog title="Nuevo turno" description="Agregalo directamente a la agenda." onClose={() => setCreating(false)}>
             <ManualAppointmentForm
               action={createAction}
               state={createState}
@@ -557,8 +441,7 @@ export function AgendaPage({
               allowAnyProfessional={allowAnyProfessional}
               onCancel={() => setCreating(false)}
             />
-          </section>
-        </div>
+        </ResponsiveDialog>
       )}
 
       {selectedBooking && (
@@ -567,6 +450,8 @@ export function AgendaPage({
           booking={selectedBooking}
           timezone={timezone}
           currency={currency}
+          role={role}
+          locations={locations}
           onClose={() => {
             setSelectedBookingId(null);
           }}
@@ -580,11 +465,15 @@ function BookingDetails({
   booking,
   timezone,
   currency,
+  role,
+  locations,
   onClose,
 }: {
   booking: Booking;
   timezone: string;
   currency: string;
+  role: "owner" | "location_operator";
+  locations: Location[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -595,78 +484,34 @@ function BookingDetails({
   const [correcting, setCorrecting] = useState<Payment | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const detailDialogRef = useRef<HTMLElement>(null);
-  const [rescheduleState, rescheduleAction, reschedulePending] = useActionState(
-    rescheduleAppointment,
-    emptyState,
-  );
   const outstanding =
     booking.priceMinor === null
       ? null
       : Math.max(booking.priceMinor - booking.paidMinor, 0);
-  const scheduled = localDateTimeParts(booking.startsAt, timezone);
 
   useEffect(() => {
     if (state.success) router.refresh();
   }, [state.success, router]);
-  useDialogAccessibility(true, detailDialogRef, onClose);
   return (
-    <div
-      className="agenda-backdrop fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#101d2c]/55 p-5 max-[600px]:items-end max-[600px]:p-0"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        ref={detailDialogRef}
-        className="agenda-dialog agenda-detail max-h-[min(90svh,900px)] w-full max-w-[680px] overflow-y-auto rounded-lg border border-[#dde3eb] bg-white p-6 shadow-2xl max-[600px]:max-h-[94svh] max-[600px]:rounded-b-none max-[600px]:p-5"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="booking-detail-title"
-        tabIndex={-1}
-      >
-        <header className="flex items-center justify-between gap-4 border-b border-[#dde3eb] pb-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="agenda-dialog-icon grid size-10 shrink-0 place-items-center rounded bg-[#eaf1f8] text-[#244f82]">
-              <CalendarDays size={18} />
-            </span>
-            <div>
-              <h2 className="text-lg font-bold" id="booking-detail-title">
-                Detalle del turno
-              </h2>
-              <p className="mt-1 text-sm text-[#56657a]">
-                {clock(booking.startsAt, timezone)}–
-                {clock(booking.endsAt, timezone)} · {booking.professionalName}
-              </p>
-            </div>
-          </div>
-          <button
-            className="agenda-close grid size-10 shrink-0 place-items-center rounded text-[#56657a] hover:bg-[#f2f4f7]"
-            type="button"
-            aria-label="Cerrar"
-            onClick={onClose}
-          >
-            <X size={19} />
-          </button>
-        </header>
+    <ResponsiveDialog title="Detalle del turno" description={`${clock(booking.startsAt, timezone)}–${clock(booking.endsAt, timezone)} · ${booking.professionalName}`} onClose={onClose}>
         <div className="agenda-detail-body grid gap-5 pt-5">
            <div className="agenda-customer grid gap-1">
              <strong className="text-lg">{booking.customerName}</strong>
              <a className="text-[.8rem] text-[#56657a]" href={`tel:${booking.customerPhone}`}>{booking.customerPhone}</a>
              <span className="text-[.8rem] text-[#56657a]">{booking.serviceName}</span>
           </div>
-           <div className="agenda-payment-summary grid grid-cols-3 gap-2 max-[520px]:gap-1">
-             <div className="grid gap-1.5 rounded border border-[#dde3eb] p-3 max-[520px]:px-[7px] max-[520px]:py-[9px]">
+            <div className="grid grid-cols-1 gap-0 border-y border-border sm:grid-cols-3 sm:gap-2 sm:border-0">
+              <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border py-3 last:border-b-0 sm:grid sm:gap-1.5 sm:rounded sm:border sm:p-3 sm:last:border-b">
                <span className="text-[.68rem] text-[#56657a]">Precio del turno</span>
-               <strong className="text-[.82rem] max-[520px]:text-xs">{formatMoney(booking.priceMinor, currency)}</strong>
+                <strong className="break-words text-right text-sm tabular-nums">{formatMoney(booking.priceMinor, currency)}</strong>
             </div>
-             <div className="grid gap-1.5 rounded border border-[#dde3eb] p-3 max-[520px]:px-[7px] max-[520px]:py-[9px]">
+              <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border py-3 last:border-b-0 sm:grid sm:gap-1.5 sm:rounded sm:border sm:p-3 sm:last:border-b">
                <span className="text-[.68rem] text-[#56657a]">Pagado</span>
-               <strong className="text-[.82rem] max-[520px]:text-xs">{formatMoney(booking.paidMinor, currency)}</strong>
+                <strong className="break-words text-right text-sm tabular-nums">{formatMoney(booking.paidMinor, currency)}</strong>
             </div>
-             <div className="grid gap-1.5 rounded border border-[#dde3eb] p-3 max-[520px]:px-[7px] max-[520px]:py-[9px]">
+              <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border py-3 last:border-b-0 sm:grid sm:gap-1.5 sm:rounded sm:border sm:p-3 sm:last:border-b">
                <span className="text-[.68rem] text-[#56657a]">Saldo</span>
-               <strong className="text-[.82rem] max-[520px]:text-xs">
+                <strong className="break-words text-right text-sm tabular-nums">
                 {outstanding === null
                   ? "—"
                   : formatMoney(outstanding, currency)}
@@ -674,101 +519,70 @@ function BookingDetails({
             </div>
           </div>
 
+          {booking.outsideSchedule && booking.status === "confirmed" && (
+            <p className="rounded border border-[#ead7ae] bg-[#fffaf0] px-3 py-2 text-xs leading-relaxed text-[#674c1d]" role="status">
+              Este turno quedó fuera del horario configurado o dentro de un bloqueo. Reprogramalo o cancelalo para evitar conflictos.
+            </p>
+          )}
+
           {booking.status === "confirmed" && (
              <div className="agenda-status-actions flex flex-wrap gap-x-[18px] gap-y-[7px] border-y border-[#dde3eb] py-3">
               <form action={updateAppointmentStatus}>
                 <input type="hidden" name="appointmentId" value={booking.id} />
                 <input type="hidden" name="status" value="attended" />
-                 <button className="agenda-text-action min-h-10 text-xs font-bold text-[#244f82]" type="submit">
-                  Marcar atendido
-                </button>
+                 <StatusSubmit>Marcar atendido</StatusSubmit>
               </form>
               <form action={updateAppointmentStatus}>
                 <input type="hidden" name="appointmentId" value={booking.id} />
                 <input type="hidden" name="status" value="no_show" />
-                 <button className="agenda-text-action min-h-10 text-xs font-bold text-[#244f82]" type="submit">
-                  Marcar ausente
-                </button>
+                 <StatusSubmit>Marcar ausente</StatusSubmit>
               </form>
               <button
                  className="agenda-text-action min-h-10 text-xs font-bold text-[#244f82]"
                 type="button"
-                onClick={() => setRescheduling((value) => !value)}
+                onClick={() => { setRescheduling((value) => !value); setConfirmCancel(false); }}
               >
                 Reprogramar
               </button>
               <button
                  className="agenda-text-action min-h-10 text-xs font-bold text-[#932f3a]"
                 type="button"
-                onClick={() => setConfirmCancel((value) => !value)}
+                 onClick={() => { setConfirmCancel((value) => !value); setRescheduling(false); }}
               >
-                {confirmCancel ? "Confirmar cancelación" : "Cancelar turno"}
+               Cancelar turno
               </button>
-              {confirmCancel && (
-                <form action={updateAppointmentStatus}>
+             </div>
+           )}
+           {confirmCancel && booking.status === "confirmed" && (
+             <div className="agenda-cancel-confirm" role="group" aria-label="Confirmar cancelación">
+               <strong>¿Cancelar el turno de {booking.customerName}?</strong>
+               <p>El horario volverá a estar disponible. Esta acción no se puede deshacer.</p>
+               <div className="agenda-cancel-actions">
+                 <button type="button" className="button secondary" onClick={() => setConfirmCancel(false)}>Conservar turno</button>
+                 <form action={updateAppointmentStatus}>
                   <input
                     type="hidden"
                     name="appointmentId"
                     value={booking.id}
                   />
                   <input type="hidden" name="status" value="cancelled" />
-                  <button
-                     className="agenda-text-action min-h-10 text-xs font-bold text-[#932f3a]"
-                    type="submit"
-                  >
-                    Sí, cancelar turno
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
+                   <StatusSubmit danger>Sí, cancelar turno</StatusSubmit>
+                 </form>
+               </div>
+             </div>
+           )}
 
           {rescheduling && booking.status === "confirmed" && (
-             <form action={rescheduleAction} className="agenda-reschedule-form grid gap-3 rounded border border-[#dde3eb] bg-[#f8fafc] p-3.5">
-               <strong className="text-[.8rem]">Nuevo horario</strong>
-              <input type="hidden" name="appointmentId" value={booking.id} />
-               <div className="agenda-form-grid grid grid-cols-2 gap-4 max-[520px]:grid-cols-1 max-[520px]:gap-3">
-                <FormField label="Fecha" htmlFor="reschedule-date">
-                  <Input
-                    id="reschedule-date"
-                    type="date"
-                    name="date"
-                    defaultValue={scheduled.date}
-                    required
-                  />
-                </FormField>
-                <FormField label="Hora" htmlFor="reschedule-time">
-                  <Input
-                    id="reschedule-time"
-                    type="time"
-                    name="time"
-                    defaultValue={scheduled.time}
-                    required
-                  />
-                </FormField>
-              </div>
-              {rescheduleState.error && (
-                 <p className="agenda-action-error rounded bg-[#f9e9eb] p-3 text-xs text-[#932f3a]" role="alert">
-                  {rescheduleState.error}
-                </p>
-              )}
-              {rescheduleState.success && (
-                 <p className="agenda-action-success rounded bg-[#e7f2ec] p-3 text-xs text-[#1f5c47]" role="status">
-                  {rescheduleState.success}
-                </p>
-              )}
-               <div className="agenda-dialog-actions flex justify-end gap-2 pt-2 max-[520px]:flex-col-reverse max-[520px]:[&_.button]:w-full">
-                <Button
-                  variant="secondary"
-                  onClick={() => setRescheduling(false)}
-                >
-                  Volver
-                </Button>
-                <Button type="submit" disabled={reschedulePending}>
-                  {reschedulePending ? "Guardando…" : "Guardar horario"}
-                </Button>
-              </div>
-            </form>
+            <RescheduleForm
+              appointmentId={booking.id}
+              initialLocationId={booking.locationId}
+              initialProfessionalId={booking.professionalId}
+              startsAt={booking.startsAt}
+              timezone={timezone}
+              role={role}
+              locations={locations.map((location) => ({ id: location.id, name: location.name }))}
+              onCancel={() => setRescheduling(false)}
+            />
           )}
 
            <section className="agenda-payment-section">
@@ -798,7 +612,7 @@ function BookingDetails({
                        <em className="text-[.7rem] not-italic text-[#56657a]">Corregido</em>
                     ) : (
                        <button
-                         className="min-h-[38px] px-2 text-xs font-bold text-[#244f82]"
+                          className="min-h-11 rounded px-2 text-xs font-bold text-brand hover:bg-brand-soft"
                         type="button"
                         onClick={() => setCorrecting(payment)}
                       >
@@ -921,7 +735,6 @@ function BookingDetails({
             )}
           </section>
         </div>
-      </section>
-    </div>
+    </ResponsiveDialog>
   );
 }

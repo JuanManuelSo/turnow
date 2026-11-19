@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useActionState } from 'react';
-import { FormFeedback } from '@/components/dashboard/form-feedback';
-import { SubmitButton } from '@/components/dashboard/submit-button';
+import { EntityFormDialog } from '@/components/dashboard/entity-form-dialog';
 import { FormField, Input, Textarea } from '@/components/ui';
 import { saveLocationAction } from './actions';
 
@@ -24,15 +22,7 @@ export function LocationForm({ location, timezone }: { location: LocationFormVal
   const errors = state.fieldErrors ?? {};
   const prefix = location ? `location-${location.id}` : 'location-new';
 
-  return <form action={formAction} className="panel-form panel-editor grid gap-4 rounded border border-[#dde3eb] bg-white p-6 max-[600px]:p-[18px]">
-    <div className="panel-editor-head flex items-center justify-between gap-4 border-b border-[#dde3eb] pb-4">
-      <div>
-        <h2>{location?.name ?? 'Datos de la sede'}</h2>
-      </div>
-       <Link href="/dashboard/sedes" className="panel-close inline-flex min-h-9 items-center rounded px-2 text-xs font-bold text-[#244f82] underline underline-offset-4">Cerrar</Link>
-    </div>
-
-    <FormFeedback state={state} />
+  return <EntityFormDialog title={location?.name ?? 'Datos de la sede'} closeHref="/dashboard/sedes" action={formAction} state={state} submitLabel={location ? 'Guardar cambios' : 'Crear sede'}>
     {location && <input type="hidden" name="id" value={location.id} />}
 
     <FormField label="Nombre" htmlFor={`${prefix}-name`} error={errors.name}>
@@ -115,6 +105,5 @@ export function LocationForm({ location, timezone }: { location: LocationFormVal
     <p className="panel-form-note text-xs leading-relaxed text-[#56657a]">Zona horaria: <strong>{timezone}</strong>, heredada del negocio.</p>
     <p className="panel-form-note text-xs leading-relaxed text-[#56657a]">Slug actual: <code>/{location?.slug ?? 'nueva-sede'}</code></p>
 
-    <SubmitButton>{location ? 'Guardar cambios' : 'Crear sede'}</SubmitButton>
-  </form>;
+  </EntityFormDialog>;
 }

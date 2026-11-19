@@ -75,6 +75,72 @@ export const schedulePayloadSchema = z.object({
   }
 });
 
+const clockPattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+const clockText = (message: string) => z.string().trim().regex(clockPattern, message);
+
+const exceptionRangeSchema = z.object({
+  start: clockText('Elegí un horario de inicio válido.'),
+  end: clockText('Elegí un horario de fin válido.'),
+});
+
+function clockToMinutes(value: string) {
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+export const scheduleExceptionInputSchema = z.object({
+  locationId: z.uuid({ error: 'Elegí una sede válida.' }),
+  localDate: z.iso.date({ error: 'Elegí una fecha válida.' }),
+  mode: z.enum(['closed', 'custom'], { error: 'Elegí el tipo de excepción.' }),
+  reason: text(300, 'El motivo no puede superar 300 caracteres.'),
+  ranges: z.array(exceptionRangeSchema).max(20, 'Hay demasiados tramos para esta fecha.'),
+}).superRefine((value, ctx) => {
+  if (value.mode === 'custom' && value.ranges.length === 0) {
+    ctx.addIssue({ code: 'custom', message: 'Agregá al menos un tramo para el horario especial.', path: ['ranges'] });
+  }
+  const ranges = value.ranges.map(range => ({
+    ...range,
+    startMinute: clockToMinutes(range.start),
+    endMinute: clockToMinutes(range.end),
+  }));
+  for (const range of ranges) {
+    if (range.endMinute <= range.startMinute) {
+      ctx.addIssue({ code: 'custom', message: 'Cada tramo debe terminar después de empezar.', path: ['ranges'] });
+      return;
+    }
+  }
+  const sorted = [...ranges].sort((a, b) => a.startMinute - b.startMinute);
+  for (let index = 1; index < sorted.length; index++) {
+    if (sorted[index].startMinute < sorted[index - 1].endMinute) {
+      ctx.addIssue({ code: 'custom', message: 'Los tramos del horario especial se superponen.', path: ['ranges'] });
+      return;
+    }
+  }
+});
+
+export const professionalBlockInputSchema = z.object({
+  locationId: z.uuid({ error: 'Elegí una sede válida.' }),
+  professionalId: z.uuid({ error: 'Elegí un profesional.' }),
+  localDate: z.iso.date({ error: 'Elegí una fecha válida.' }),
+  allDay: z.boolean(),
+  start: text(5, 'Elegí un horario de inicio válido.'),
+  end: text(5, 'Elegí un horario de fin válido.'),
+  reason: text(300, 'El motivo no puede superar 300 caracteres.'),
+}).superRefine((value, ctx) => {
+  if (value.allDay) return;
+  if (!clockPattern.test(value.start)) {
+    ctx.addIssue({ code: 'custom', message: 'Elegí un horario de inicio válido.', path: ['start'] });
+    return;
+  }
+  if (!clockPattern.test(value.end)) {
+    ctx.addIssue({ code: 'custom', message: 'Elegí un horario de fin válido.', path: ['end'] });
+    return;
+  }
+  if (clockToMinutes(value.end) <= clockToMinutes(value.start)) {
+    ctx.addIssue({ code: 'custom', message: 'El bloqueo debe terminar después de empezar.', path: ['end'] });
+  }
+});
+
 export const settingsInputSchema = z.object({
   slotIntervalMinutes: z.coerce.number().int().refine(
     value => [15, 30, 60].includes(value),

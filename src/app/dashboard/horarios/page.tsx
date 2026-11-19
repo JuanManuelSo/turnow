@@ -6,15 +6,20 @@ import { PanelNotice } from '@/components/dashboard/notice';
 import { requireOwner } from '@/server/auth/access';
 import { getSchedulesData } from '@/server/business/queries';
 import { ScheduleEditor } from './schedule-editor';
+import { ExceptionsPanel } from './exceptions-panel';
 
 export const metadata: Metadata = { title: 'Horarios' };
 
 export default async function HorariosPage({ searchParams }: {
-  searchParams: Promise<{ sede?: string; ambito?: string; guardado?: string }>;
+  searchParams: Promise<{
+    sede?: string; ambito?: string; guardado?: string; vista?: string;
+    eliminado?: string; bloqueEliminado?: string;
+  }>;
 }) {
   const { membership } = await requireOwner();
   const params = await searchParams;
   const data = await getSchedulesData(membership.businessId, params.sede);
+  const vista = params.vista === 'excepciones' ? 'excepciones' : 'horarios';
 
   if (!data.selected) {
     return <>
@@ -52,11 +57,30 @@ export default async function HorariosPage({ searchParams }: {
     />
 
     {params.guardado === '1' && <PanelNotice>El horario se guardó correctamente.</PanelNotice>}
+    {params.eliminado === '1' && <PanelNotice>La excepción se eliminó.</PanelNotice>}
+    {params.bloqueEliminado === '1' && <PanelNotice>El bloqueo se eliminó.</PanelNotice>}
+
+    <nav className="panel-tabs mb-3 flex gap-2 overflow-x-auto border-b border-[#dde3eb] pb-2 [scrollbar-width:thin] max-[600px]:grid max-[600px]:grid-cols-2 max-[600px]:overflow-visible" aria-label="Vista de horarios">
+      <Link
+        href={`/dashboard/horarios?sede=${selectedLocation.id}&vista=horarios`}
+        aria-current={vista === 'horarios' ? 'page' : undefined}
+        className="inline-flex min-h-11 shrink-0 items-center justify-center rounded border border-transparent px-3 py-[7px] text-[.8125rem] leading-[1.15] font-semibold whitespace-nowrap text-[#56657a] no-underline hover:bg-[#e9edf3] hover:text-[#1b2839] aria-[current=page]:border-[#c1cad6] aria-[current=page]:bg-white aria-[current=page]:text-[#1b2839] max-[600px]:border-[#dde3eb]"
+      >
+        Horarios semanales
+      </Link>
+      <Link
+        href={`/dashboard/horarios?sede=${selectedLocation.id}&vista=excepciones`}
+        aria-current={vista === 'excepciones' ? 'page' : undefined}
+        className="inline-flex min-h-11 shrink-0 items-center justify-center rounded border border-transparent px-3 py-[7px] text-[.8125rem] leading-[1.15] font-semibold whitespace-nowrap text-[#56657a] no-underline hover:bg-[#e9edf3] hover:text-[#1b2839] aria-[current=page]:border-[#c1cad6] aria-[current=page]:bg-white aria-[current=page]:text-[#1b2839] max-[600px]:border-[#dde3eb]"
+      >
+        Excepciones y bloqueos
+      </Link>
+    </nav>
 
      <nav className="panel-tabs mb-5 flex gap-2 overflow-x-auto border-b border-[#dde3eb] pb-2 [scrollbar-width:thin] max-[600px]:grid max-[600px]:grid-cols-2 max-[600px]:overflow-visible" aria-label="Sedes">
       {data.locations.map(location => <Link
         key={location.id}
-        href={`/dashboard/horarios?sede=${location.id}&ambito=sede`}
+        href={`/dashboard/horarios?sede=${location.id}&vista=${vista}`}
          aria-current={location.id === selectedLocation.id ? 'true' : undefined}
           className="inline-flex min-h-11 shrink-0 flex-col items-start justify-center rounded border border-transparent px-3 py-[7px] text-[.8125rem] leading-[1.15] font-semibold whitespace-nowrap text-[#56657a] no-underline hover:bg-[#e9edf3] hover:text-[#1b2839] aria-[current=true]:border-[#c1cad6] aria-[current=true]:bg-white aria-[current=true]:text-[#1b2839] max-[600px]:items-center max-[600px]:border-[#dde3eb] max-[600px]:text-center max-[600px]:whitespace-normal max-[600px]:aria-[current=true]:border-[#1b2839]"
       >
@@ -65,7 +89,15 @@ export default async function HorariosPage({ searchParams }: {
       </Link>)}
     </nav>
 
-    <div className={`panel-split panel-split-wide panel-split-horarios grid grid-cols-[minmax(0,1fr)_minmax(340px,390px)] items-start gap-8 max-[1100px]:grid-cols-1${scopeSelected ? ' is-focused' : ''}`}>
+    {vista === 'excepciones' ? <ExceptionsPanel
+      locationId={selectedLocation.id}
+      locationName={selectedLocation.name}
+      today={data.today ?? ''}
+      timezone={selectedLocation.timezone}
+      exceptions={data.exceptions}
+      blocks={data.blocks}
+      professionals={data.professionals.map(professional => ({ id: professional.id, name: professional.displayName }))}
+    /> : <div className={`panel-split panel-split-wide panel-split-horarios grid grid-cols-[minmax(0,1fr)_minmax(340px,390px)] items-start gap-8 max-[1100px]:grid-cols-1${scopeSelected ? ' is-focused' : ''}`}>
       <section aria-label={`Horarios de ${selectedLocation.name}`} className="panel-list min-w-0 rounded border border-[#dde3eb] bg-white p-4">
          <p className="panel-list-summary border-b border-[#dde3eb] bg-[#f8fafc] px-5 py-3 text-xs text-[#56657a]">{selectedLocation.addressText || selectedLocation.name}</p>
 
@@ -120,6 +152,6 @@ export default async function HorariosPage({ searchParams }: {
           />
         </div>
       </aside>
-    </div>
+    </div>}
   </>;
 }

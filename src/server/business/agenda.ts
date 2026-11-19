@@ -3,9 +3,18 @@ import { and, asc, desc, eq, gte, inArray, lt, ne } from 'drizzle-orm';
 import { getDb } from '@/server/db/client';
 import { localDayBounds } from '@/lib/timezone';
 import {
-  appointmentPayments, appointments, businesses, locations,
-  businessSettings, professionalLocations, professionals, services,
+  appointmentPayments, appointments, businesses, calendarOccupancies, exceptionIntervals,
+  locations, businessSettings, professionalLocations, professionals, scheduleExceptions,
+  schedules, services, weeklyIntervals,
 } from '@/server/db/schema';
+import { intervalsForDate, weekdayForDate } from './availability-engine';
+
+function localMinuteOfDay(value: Date, timezone: string) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(value)).map(part => [part.type, part.value]));
+  return Number(parts.hour) * 60 + Number(parts.minute);
+}
 
 export async function getAgendaData(businessId: string, requestedLocationId: string | undefined, date: string) {
   const db = getDb();
@@ -38,7 +47,8 @@ export async function getAgendaData(businessId: string, requestedLocationId: str
 
   const bounds = localDayBounds(date, selectedLocation.timezone);
   const appointmentRows = await db.select({
-    id: appointments.id, startsAt: appointments.startsAt, endsAt: appointments.endsAt,
+    id: appointments.id, locationId: appointments.locationId,
+    startsAt: appointments.startsAt, endsAt: appointments.endsAt,
     customerName: appointments.customerName, customerPhone: appointments.customerPhone,
     serviceName: appointments.serviceNameSnapshot, professionalId: appointments.professionalId,
     professionalName: appointments.professionalNameSnapshot, status: appointments.status,
@@ -50,6 +60,82 @@ export async function getAgendaData(businessId: string, requestedLocationId: str
     gte(appointments.startsAt, bounds.start), lt(appointments.startsAt, bounds.end),
     ne(appointments.status, 'cancelled'),
   )).orderBy(asc(appointments.startsAt));
+
+  const scheduleRows = await db.select({
+    id: schedules.id, professionalId: schedules.professionalId,
+  }).from(schedules).where(and(
+    eq(schedules.businessId, businessId),
+    eq(schedules.locationId, selectedLocation.id),
+  ));
+  const scheduleIds = scheduleRows.map(schedule => schedule.id);
+
+  const [intervalRows, exceptionRows, blockRows] = await Promise.all([
+    scheduleIds.length
+      ? db.select({
+        scheduleId: weeklyIntervals.scheduleId,
+        weekday: weeklyIntervals.weekday,
+        startMinute: weeklyIntervals.startMinute,
+        endMinute: weeklyIntervals.endMinute,
+      }).from(weeklyIntervals).where(and(
+        eq(weeklyIntervals.businessId, businessId),
+        inArray(weeklyIntervals.scheduleId, scheduleIds),
+      ))
+      : [],
+    scheduleIds.length
+      ? db.select({
+        scheduleId: scheduleExceptions.scheduleId,
+        mode: scheduleExceptions.mode,
+        startMinute: exceptionIntervals.startMinute,
+        endMinute: exceptionIntervals.endMinute,
+      }).from(scheduleExceptions)
+        .leftJoin(exceptionIntervals, and(
+          eq(exceptionIntervals.businessId, scheduleExceptions.businessId),
+          eq(exceptionIntervals.exceptionId, scheduleExceptions.id),
+        ))
+        .where(and(
+          eq(scheduleExceptions.businessId, businessId),
+          inArray(scheduleExceptions.scheduleId, scheduleIds),
+          eq(scheduleExceptions.localDate, date),
+        ))
+      : [],
+    db.select({
+      professionalId: calendarOccupancies.professionalId,
+      startsAt: calendarOccupancies.startsAt,
+      endsAt: calendarOccupancies.endsAt,
+    }).from(calendarOccupancies).where(and(
+      eq(calendarOccupancies.businessId, businessId),
+      eq(calendarOccupancies.locationId, selectedLocation.id),
+      eq(calendarOccupancies.kind, 'block'),
+      eq(calendarOccupancies.isActive, true),
+      lt(calendarOccupancies.startsAt, bounds.end),
+      gte(calendarOccupancies.endsAt, bounds.start),
+    )),
+  ]);
+
+  const weeklyBySchedule = new Map<string, Array<{ weekday: number; startMinute: number; endMinute: number }>>();
+  for (const row of intervalRows) {
+    weeklyBySchedule.set(row.scheduleId, [...(weeklyBySchedule.get(row.scheduleId) ?? []), row]);
+  }
+  const exceptionsBySchedule = new Map<string, { mode: 'closed' | 'custom'; intervals: Array<{ startMinute: number; endMinute: number }> }>();
+  for (const row of exceptionRows) {
+    const exception = exceptionsBySchedule.get(row.scheduleId) ?? { mode: row.mode, intervals: [] };
+    if (row.startMinute !== null && row.endMinute !== null) {
+      exception.intervals.push({ startMinute: row.startMinute, endMinute: row.endMinute });
+    }
+    exceptionsBySchedule.set(row.scheduleId, exception);
+  }
+  const weekday = weekdayForDate(date);
+  const locationSchedule = scheduleRows.find(schedule => schedule.professionalId === null) ?? null;
+  const locationIntervals = locationSchedule
+    ? intervalsForDate(weekday, weeklyBySchedule.get(locationSchedule.id) ?? [], exceptionsBySchedule.get(locationSchedule.id))
+    : [];
+  const professionalSchedules = new Map(
+    scheduleRows
+      .filter(schedule => schedule.professionalId !== null)
+      .map(schedule => [schedule.professionalId as string, schedule.id]),
+  );
+  const fitsIntervals = (startMinute: number, endMinute: number, intervals: Array<{ startMinute: number; endMinute: number }>) =>
+    endMinute > startMinute && intervals.some(interval => startMinute >= interval.startMinute && endMinute <= interval.endMinute);
 
   const paymentRows = appointmentRows.length ? await db.select({
     id: appointmentPayments.id, appointmentId: appointmentPayments.appointmentId,
@@ -74,10 +160,24 @@ export async function getAgendaData(businessId: string, requestedLocationId: str
     allowAnyProfessional: settingRows[0]?.allowAnyProfessional ?? false,
     appointments: appointmentRows.map(appointment => {
       const payments = paymentsByAppointment.get(appointment.id) ?? [];
+      const startMinute = localMinuteOfDay(appointment.startsAt, selectedLocation.timezone);
+      const endMinute = localMinuteOfDay(appointment.endsAt, selectedLocation.timezone);
+      const personalScheduleId = professionalSchedules.get(appointment.professionalId);
+      const personalIntervals = personalScheduleId
+        ? intervalsForDate(weekday, weeklyBySchedule.get(personalScheduleId) ?? [], exceptionsBySchedule.get(personalScheduleId))
+        : locationIntervals;
+      const blocked = blockRows.some(block =>
+        block.professionalId === appointment.professionalId
+        && block.startsAt < appointment.endsAt
+        && block.endsAt > appointment.startsAt);
+      const outsideSchedule = !fitsIntervals(startMinute, endMinute, locationIntervals)
+        || !fitsIntervals(startMinute, endMinute, personalIntervals)
+        || blocked;
       return {
         ...appointment,
         payments,
         paidMinor: payments.filter(payment => !payment.reversedAt).reduce((sum, payment) => sum + payment.amountMinor, 0),
+        outsideSchedule,
       };
     }),
   };

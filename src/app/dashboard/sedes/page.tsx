@@ -28,14 +28,14 @@ export default async function SedesPage({ searchParams }: {
     <PanelHeader
       title="Sedes"
       description="Cada sede tiene su dirección y su propia agenda. El catálogo de servicios es el mismo para todas."
-      actions={<ActionLink href="/dashboard/sedes?nueva=1">Nueva sede</ActionLink>}
+      actions={<ActionLink create href="/dashboard/sedes?nueva=1">Nueva sede</ActionLink>}
     />
 
     {params.guardado === '1' && <PanelNotice>La sede se guardó correctamente.</PanelNotice>}
     {params.principal && <PanelNotice>La sede principal se actualizó.</PanelNotice>}
     {params.error && <PanelNotice tone="warning">No pudimos cambiar la sede principal. Recargá e intentá de nuevo.</PanelNotice>}
 
-    <div className="panel-split grid grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-start gap-8 max-[1100px]:grid-cols-1">
+    <div className="panel-entity-list">
       <section aria-label="Sedes del negocio" className="panel-list min-w-0 overflow-hidden rounded border border-[#dde3eb] bg-white">
         {locations.length === 0 && <div className="panel-empty grid justify-items-start gap-3 border-b border-dashed border-[#c1cad6] bg-white p-6">
           <h2>Todavía no hay sedes</h2>
@@ -66,14 +66,7 @@ export default async function SedesPage({ searchParams }: {
         {locations.length > 0 && <p className="panel-list-note flex items-start gap-2 border-t border-[#dde3eb] bg-[#f8fafc] px-5 py-4 text-xs leading-relaxed text-[#56657a]"><MapPin size={14} aria-hidden="true" />La sede principal se usa como referencia del negocio. Podés cambiarla cuando quieras.</p>}
       </section>
 
-      <aside aria-label="Editor de sede">
-        {formValue !== null || isNew
-          ? <LocationForm location={formValue} timezone={business?.timezone ?? 'America/Argentina/Buenos_Aires'} />
-          : <div className="panel-editor-empty grid min-h-[220px] content-center justify-items-start gap-3 rounded border border-dashed border-[#c1cad6] bg-white p-6">
-            <h2>Elegí una sede</h2>
-            <p>Seleccioná <strong>Editar</strong> en una sede de la lista o creá una nueva para cargar su dirección y contacto.</p>
-          </div>}
-      </aside>
+      {params.guardado !== '1' && (formValue !== null || isNew) && <LocationForm key={formValue?.id ?? 'new'} location={formValue} timezone={business?.timezone ?? 'America/Argentina/Buenos_Aires'} />}
     </div>
   </>;
 }

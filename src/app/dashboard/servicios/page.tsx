@@ -28,12 +28,12 @@ export default async function ServiciosPage({ searchParams }: {
     <PanelHeader
       title="Servicios"
       description="Duración y precio del catálogo. El mismo catálogo se ofrece en todas las sedes."
-      actions={<ActionLink href="/dashboard/servicios?nuevo=1">Nuevo servicio</ActionLink>}
+      actions={<ActionLink create href="/dashboard/servicios?nuevo=1">Nuevo servicio</ActionLink>}
     />
 
     {params.guardado === '1' && <PanelNotice>El servicio se guardó correctamente.</PanelNotice>}
 
-    <div className="panel-split grid grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-start gap-8 max-[1100px]:grid-cols-1">
+    <div className="panel-entity-list">
       <section aria-label="Catálogo de servicios" className="panel-list min-w-0 overflow-hidden rounded border border-[#dde3eb] bg-white">
         <p className="panel-list-summary border-b border-[#dde3eb] bg-[#f8fafc] px-5 py-3 text-xs text-[#56657a]">{activeCount} {activeCount === 1 ? 'servicio activo' : 'servicios activos'} de {services.length}</p>
 
@@ -62,14 +62,7 @@ export default async function ServiciosPage({ searchParams }: {
         {services.length > 0 && <p className="panel-list-note border-t border-[#dde3eb] bg-[#f8fafc] px-5 py-4 text-xs leading-relaxed text-[#56657a]">Los servicios no se eliminan: se desactivan para conservar las reservas ya confirmadas.</p>}
       </section>
 
-      <aside aria-label="Editor de servicio">
-        {formValue !== null || isNew
-          ? <ServiceForm service={formValue} currency={business?.currency ?? 'ARS'} />
-          : <div className="panel-editor-empty grid min-h-[220px] content-center justify-items-start gap-3 rounded border border-dashed border-[#c1cad6] bg-white p-6">
-            <h2>Elegí un servicio</h2>
-            <p>Seleccioná <strong>Editar</strong> en la lista o creá uno nuevo para definir duración y precio.</p>
-          </div>}
-      </aside>
+      {params.guardado !== '1' && (formValue !== null || isNew) && <ServiceForm key={formValue?.id ?? 'new'} service={formValue} currency={business?.currency ?? 'ARS'} />}
     </div>
   </>;
 }

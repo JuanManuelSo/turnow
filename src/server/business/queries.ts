@@ -1,11 +1,12 @@
 import 'server-only';
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, gt, inArray, isNull } from 'drizzle-orm';
 import { PAGE_EDITOR_ENABLED } from '@/config/features';
 import { getDb } from '@/server/db/client';
 import { formatTimezone } from '@/lib/dashboard-format';
 import {
-  businessMembers, businessPages, businessSettings, businesses, locations,
-  professionals, professionalLocations, professionalServices, schedules, services, weeklyIntervals,
+  businessMembers, businessPages, businessSettings, businesses, calendarOccupancies,
+  exceptionIntervals, locations, professionals, professionalLocations, professionalServices,
+  scheduleExceptions, schedules, services, weeklyIntervals,
 } from '@/server/db/schema';
 
 export type BusinessShell = {
@@ -112,6 +113,7 @@ export async function getSchedulesData(businessId: string, requestedLocationId?:
     id: locations.id,
     name: locations.name,
     addressText: locations.addressText,
+    timezone: locations.timezone,
     isPrimary: locations.isPrimary,
   }).from(locations)
     .where(and(eq(locations.businessId, businessId), eq(locations.isActive, true)))
@@ -119,7 +121,10 @@ export async function getSchedulesData(businessId: string, requestedLocationId?:
 
   const selected = locationRows.find(location => location.id === requestedLocationId) ?? locationRows[0] ?? null;
   if (!selected) {
-    return { locations: locationRows, selected: null, professionals: [], schedules: [], coverage: {} };
+    return {
+      locations: locationRows, selected: null, professionals: [], schedules: [],
+      coverage: {}, exceptions: [], blocks: [], today: null,
+    };
   }
 
   const professionalRows = await db.select({ id: professionals.id, displayName: professionals.displayName })
@@ -169,6 +174,74 @@ export async function getSchedulesData(businessId: string, requestedLocationId?:
       .orderBy(asc(weeklyIntervals.weekday), asc(weeklyIntervals.startMinute))
     : [];
 
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: selected.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+
+  const [exceptionRows, blockRows] = await Promise.all([
+    scheduleIds.length
+      ? db.select({
+        id: scheduleExceptions.id,
+        scheduleId: scheduleExceptions.scheduleId,
+        localDate: scheduleExceptions.localDate,
+        mode: scheduleExceptions.mode,
+        reason: scheduleExceptions.reason,
+        professionalId: schedules.professionalId,
+        startMinute: exceptionIntervals.startMinute,
+        endMinute: exceptionIntervals.endMinute,
+      }).from(scheduleExceptions)
+        .innerJoin(schedules, and(
+          eq(schedules.businessId, scheduleExceptions.businessId),
+          eq(schedules.id, scheduleExceptions.scheduleId),
+        ))
+        .leftJoin(exceptionIntervals, and(
+          eq(exceptionIntervals.businessId, scheduleExceptions.businessId),
+          eq(exceptionIntervals.exceptionId, scheduleExceptions.id),
+        ))
+        .where(and(
+          eq(scheduleExceptions.businessId, businessId),
+          inArray(scheduleExceptions.scheduleId, scheduleIds),
+          gte(scheduleExceptions.localDate, today),
+        ))
+        .orderBy(asc(scheduleExceptions.localDate))
+      : [],
+    db.select({
+      id: calendarOccupancies.id,
+      professionalId: calendarOccupancies.professionalId,
+      professionalName: professionals.displayName,
+      startsAt: calendarOccupancies.startsAt,
+      endsAt: calendarOccupancies.endsAt,
+      reason: calendarOccupancies.reason,
+    }).from(calendarOccupancies)
+      .innerJoin(professionals, and(
+        eq(professionals.businessId, calendarOccupancies.businessId),
+        eq(professionals.id, calendarOccupancies.professionalId),
+      ))
+      .where(and(
+        eq(calendarOccupancies.businessId, businessId),
+        eq(calendarOccupancies.locationId, selected.id),
+        eq(calendarOccupancies.kind, 'block'),
+        eq(calendarOccupancies.isActive, true),
+        gt(calendarOccupancies.endsAt, new Date()),
+      ))
+      .orderBy(asc(calendarOccupancies.startsAt)),
+  ]);
+
+  const exceptionsById = new Map<string, {
+    id: string; localDate: string; mode: 'closed' | 'custom'; reason: string | null;
+    professionalId: string | null; intervals: Array<{ startMinute: number; endMinute: number }>;
+  }>();
+  for (const row of exceptionRows) {
+    const exception = exceptionsById.get(row.id) ?? {
+      id: row.id, localDate: row.localDate, mode: row.mode, reason: row.reason,
+      professionalId: row.professionalId, intervals: [],
+    };
+    if (row.startMinute !== null && row.endMinute !== null) {
+      exception.intervals.push({ startMinute: row.startMinute, endMinute: row.endMinute });
+    }
+    exceptionsById.set(row.id, exception);
+  }
+
   return {
     locations: locationRows,
     selected,
@@ -178,6 +251,9 @@ export async function getSchedulesData(businessId: string, requestedLocationId?:
       intervals: intervalRows.filter(interval => interval.scheduleId === schedule.id),
     })),
     coverage,
+    today,
+    exceptions: [...exceptionsById.values()],
+    blocks: blockRows,
   };
 }
 

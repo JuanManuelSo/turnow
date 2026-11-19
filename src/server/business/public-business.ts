@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { getDb } from '@/server/db/client';
 import {
@@ -6,7 +7,7 @@ import {
   professionalLocations, professionalServices, professionals, schedules, services, weeklyIntervals,
 } from '@/server/db/schema';
 
-export async function getPublicBusinessBySlug(slug: string, includeInactive = false) {
+export const getPublicBusinessBySlug = cache(async (slug: string, includeInactive = false) => {
   const db = getDb();
   const [business] = await db.select({
     id: businesses.id, name: businesses.name, slug: businesses.slug, status: businesses.status,
@@ -82,4 +83,30 @@ export async function getPublicBusinessBySlug(slug: string, includeInactive = fa
     })),
     professionals: professionalRows,
   };
+});
+
+/**
+ * Lightweight lookup for server actions that only need to authorize the
+ * business. Avoids loading the full public page payload on every availability
+ * request.
+ */
+export async function getPublicBookingBusiness(slug: string) {
+  const [business] = await getDb().select({
+    id: businesses.id,
+    status: businesses.status,
+    enabled: businessSettings.publicBookingEnabled,
+  }).from(businesses)
+    .innerJoin(businessSettings, eq(businessSettings.businessId, businesses.id))
+    .where(eq(businesses.slug, slug))
+    .limit(1);
+  if (!business || business.status !== 'active') return null;
+  return { id: business.id, publicBookingEnabled: business.enabled };
+}
+
+/** ID-only lookup used by cancellation actions, including inactive businesses. */
+export async function getPublicBusinessIdBySlug(slug: string, includeInactive = false) {
+  const [business] = await getDb().select({ id: businesses.id, status: businesses.status })
+    .from(businesses).where(eq(businesses.slug, slug)).limit(1);
+  if (!business || (!includeInactive && business.status !== 'active')) return null;
+  return { id: business.id, status: business.status };
 }

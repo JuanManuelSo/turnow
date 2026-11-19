@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useActionState } from 'react';
-import { FormFeedback } from '@/components/dashboard/form-feedback';
-import { SubmitButton } from '@/components/dashboard/submit-button';
+import { EntityFormDialog } from '@/components/dashboard/entity-form-dialog';
 import { FormField, Input, Textarea } from '@/components/ui';
 import { saveProfessionalAction } from './actions';
 
@@ -27,15 +26,7 @@ export function ProfessionalForm({ professional, locations, services }: {
   const errors = state.fieldErrors ?? {};
   const prefix = professional ? `professional-${professional.id}` : 'professional-new';
 
-  return <form action={formAction} className="panel-form panel-editor grid gap-4 rounded border border-[#dde3eb] bg-white p-6 max-[600px]:p-[18px]">
-    <div className="panel-editor-head flex items-center justify-between gap-4 border-b border-[#dde3eb] pb-4">
-      <div>
-        <h2>{professional?.displayName ?? 'Datos del profesional'}</h2>
-      </div>
-       <Link href="/dashboard/profesionales" className="panel-close inline-flex min-h-9 items-center rounded px-2 text-xs font-bold text-[#244f82] underline underline-offset-4">Cerrar</Link>
-    </div>
-
-    <FormFeedback state={state} />
+  return <EntityFormDialog title={professional?.displayName ?? 'Datos del profesional'} closeHref="/dashboard/profesionales" action={formAction} state={state} submitLabel={professional ? 'Guardar cambios' : 'Agregar profesional'}>
     {professional && <input type="hidden" name="id" value={professional.id} />}
 
     <FormField label="Nombre visible" htmlFor={`${prefix}-name`} error={errors.displayName}>
@@ -97,6 +88,5 @@ export function ProfessionalForm({ professional, locations, services }: {
       </span>
     </label>
 
-    <SubmitButton>{professional ? 'Guardar cambios' : 'Agregar profesional'}</SubmitButton>
-  </form>;
+  </EntityFormDialog>;
 }

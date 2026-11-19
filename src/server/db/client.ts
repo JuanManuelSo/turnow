@@ -20,13 +20,34 @@ function createDatabase() {
     throw new Error('DATABASE_URL debe usar el usuario runtime de permisos limitados. Reservá postgres para DATABASE_MIGRATION_URL.');
   }
 
+  // El session pooler (5432) permite prepared statements estables. Cada
+  // consulta parametrizada contra el transaction pooler (6543) paga un round
+  // trip extra de describe porque drizzle no las nombra. Si se despliega en
+  // serverless con muchas instancias, usar 6543: el modo preparado se apaga
+  // solo y la conexión vuelve a ser segura para transaction pooling.
+  const preparedStatements = url.port === '5432';
   const client = postgres(result.data, {
     ssl: 'require',
-    prepare: false, // Compatible con el transaction pooler de Supabase.
-    max: 3,
-    idle_timeout: 20,
+    prepare: preparedStatements,
+    max: 5,
+    idle_timeout: 60,
     connect_timeout: 10,
   });
+
+  if (preparedStatements) {
+    // Drizzle llama a unsafe(..., { prepare: false }) salvo que la consulta
+    // tenga nombre, lo que anula el modo preparado del cliente. Lo forzamos
+    // acá: el session pooler lo soporta y evita el describe por consulta.
+    const unsafe = client.unsafe.bind(client);
+    Object.assign(client, {
+      unsafe: ((query: string, parameters?: unknown, options?: unknown) => {
+        const params = Array.isArray(parameters) ? parameters : [];
+        const queryOptions = Array.isArray(parameters) ? options : parameters;
+        return unsafe(query, params as never, { ...(queryOptions as object), prepare: true } as never);
+      }) as typeof client.unsafe,
+    });
+  }
+
   return { client, db: drizzle(client, { schema }) };
 }
 

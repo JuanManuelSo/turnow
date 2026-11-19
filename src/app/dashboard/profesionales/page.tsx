@@ -25,12 +25,12 @@ export default async function ProfesionalesPage({ searchParams }: {
     <PanelHeader
       title="Profesionales"
       description="Quiénes atienden, en qué sedes y qué servicios ofrecen. No necesitan una cuenta propia en esta etapa."
-      actions={<ActionLink href="/dashboard/profesionales?nuevo=1">Nuevo profesional</ActionLink>}
+      actions={<ActionLink create href="/dashboard/profesionales?nuevo=1">Nuevo profesional</ActionLink>}
     />
 
     {params.guardado === '1' && <PanelNotice>El profesional se guardó correctamente.</PanelNotice>}
 
-    <div className="panel-split grid grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-start gap-8 max-[1100px]:grid-cols-1">
+    <div className="panel-entity-list">
       <section aria-label="Equipo" className="panel-list min-w-0 overflow-hidden rounded border border-[#dde3eb] bg-white">
         <p className="panel-list-summary border-b border-[#dde3eb] bg-[#f8fafc] px-5 py-3 text-xs text-[#56657a]">{activeCount} {activeCount === 1 ? 'profesional activo' : 'profesionales activos'} de {data.professionals.length}</p>
 
@@ -63,14 +63,7 @@ export default async function ProfesionalesPage({ searchParams }: {
         {data.professionals.length > 0 && <p className="panel-list-note border-t border-[#dde3eb] bg-[#f8fafc] px-5 py-4 text-xs leading-relaxed text-[#56657a]">Desactivar a un profesional no borra sus turnos ni su historial: deja de ofrecerse para reservas nuevas.</p>}
       </section>
 
-      <aside aria-label="Editor de profesional">
-        {formValue !== null || isNew
-          ? <ProfessionalForm professional={formValue} locations={data.locations} services={data.services} />
-          : <div className="panel-editor-empty grid min-h-[220px] content-center justify-items-start gap-3 rounded border border-dashed border-[#c1cad6] bg-white p-6">
-            <h2>Elegí un profesional</h2>
-            <p>Seleccioná <strong>Editar</strong> en la lista o creá uno nuevo para asignarle sedes y servicios.</p>
-          </div>}
-      </aside>
+      {params.guardado !== '1' && (formValue !== null || isNew) && <ProfessionalForm key={formValue?.id ?? 'new'} professional={formValue} locations={data.locations} services={data.services} />}
     </div>
   </>;
 }

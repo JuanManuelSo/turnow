@@ -1061,10 +1061,23 @@ export function PublicBookingWizard({
             </p>
           )}
 
-          <div className="mt-8 flex items-center justify-between gap-4 border-t border-border pt-5 max-[600px]:sticky max-[600px]:bottom-0 max-[600px]:z-10 max-[600px]:mx-[-20px] max-[600px]:mt-6 max-[600px]:bg-white/95 max-[600px]:px-5 max-[600px]:pt-3 max-[600px]:pb-[calc(12px_+_env(safe-area-inset-bottom))] max-[600px]:shadow-[0_-8px_22px_#142b4912] max-[600px]:backdrop-blur-md max-[360px]:mx-[-16px] max-[360px]:px-4">
-            <span className="text-xs text-muted-foreground">
-              Paso {currentStep + 1} de {steps.length}
-            </span>
+          <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-5 max-[600px]:sticky max-[600px]:bottom-0 max-[600px]:z-10 max-[600px]:mx-[-20px] max-[600px]:mt-6 max-[600px]:bg-white/95 max-[600px]:px-5 max-[600px]:pt-3 max-[600px]:pb-[calc(12px_+_env(safe-area-inset-bottom))] max-[600px]:shadow-[0_-8px_22px_#142b4912] max-[600px]:backdrop-blur-md max-[360px]:mx-[-16px] max-[360px]:px-4">
+            <div className="flex min-w-0 items-center gap-2 max-[600px]:gap-1">
+              {currentStep > 0 && (
+                <Button
+                  variant="secondary"
+                  className="shrink-0 px-3 max-[360px]:px-2.5"
+                  aria-label={`Volver al paso ${currentStep}: ${steps[currentStep - 1]}`}
+                  onClick={() => goToStep(currentStep - 1)}
+                >
+                  <ArrowLeft size={16} />
+                  <span className="max-[360px]:sr-only">Volver</span>
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground max-[360px]:sr-only">
+                Paso {currentStep + 1} de {steps.length}
+              </span>
+            </div>
             {currentStep < steps.length - 1 ? (
               <Button key={currentStep} onClick={next}>
                 Continuar
