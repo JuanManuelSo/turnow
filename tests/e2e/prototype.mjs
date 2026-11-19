@@ -129,17 +129,31 @@ await button('Continuar').click();
        name: box('.review-customer-list div:first-child dt').top,
        phone: box('.review-customer-list div:last-child dt').top,
        detailLabel: box('.review-details .summary-row dt').left,
-       detailValue: box('.review-details .summary-row dd').left,
-       nameLabel: box('.review-customer-list div:first-child dt').left,
-       nameValue: box('.review-customer-list div:first-child dd').left,
-       phoneLabel: box('.review-customer-list div:last-child dt').left,
-       phoneValue: box('.review-customer-list div:last-child dd').left,
+        detailValue: box('.review-details .summary-row dd').right,
+        totalValue: box('.review-details .summary-total dd').right,
+        nameLabel: box('.review-customer-list div:first-child dt').left,
+        nameValue: box('.review-customer-list div:first-child dd').right,
+        phoneLabel: box('.review-customer-list div:last-child dt').left,
+        phoneValue: box('.review-customer-list div:last-child dd').right,
      };
    });
    assert(contactLayout.heading < contactLayout.name && contactLayout.name < contactLayout.phone, `Contact heading and rows are stacked at ${width}px`);
-   for (const [contact, detail] of [['nameLabel', 'detailLabel'], ['phoneLabel', 'detailLabel'], ['nameValue', 'detailValue'], ['phoneValue', 'detailValue']]) {
-     assert(Math.abs(contactLayout[contact] - contactLayout[detail]) < 2, `Contact ${contact} aligns with booking details at ${width}px`);
-   }
+    for (const [contact, detail] of [['nameLabel', 'detailLabel'], ['phoneLabel', 'detailLabel'], ['nameValue', 'detailValue'], ['phoneValue', 'detailValue']]) {
+      assert(Math.abs(contactLayout[contact] - contactLayout[detail]) < 2, `Contact ${contact} aligns with booking details at ${width}px`);
+    }
+    assert(Math.abs(contactLayout.totalValue - contactLayout.detailValue) < 2, `Total aligns with booking details at ${width}px`);
+    const detailsAligned = await page.locator('.review-details .summary-row dd').evaluateAll(values => {
+      const right = values[0].closest('.summary-list').getBoundingClientRect().right;
+      return values.every(value => Math.abs(value.getBoundingClientRect().right - right) < 2);
+    });
+    assert(detailsAligned, `Every booking detail aligns to the right edge at ${width}px`);
+    if (width === 1440) {
+      const sidebarAligned = await page.locator('.booking-summary .summary-row dd').evaluateAll(values => {
+        const right = values[0].closest('.summary-list').getBoundingClientRect().right;
+        return values.every(value => Math.abs(value.getBoundingClientRect().right - right) < 2);
+      });
+      assert(sidebarAligned, 'Tu visita values align to the right edge');
+    }
  }
  await page.setViewportSize({ width: 1440, height: 1000 });
 await button('Probar estados').click();

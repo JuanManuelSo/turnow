@@ -36,6 +36,8 @@ Valores y secretos deben pertenecer exclusivamente al proyecto Supabase de stagi
 
 `DATABASE_MIGRATION_URL` no es necesaria en la aplicación web y no debe añadirse a Vercel. Las migraciones se aplican desde una sesión administrativa protegida, manualmente y contra el proyecto correcto.
 
+Para Vercel, confirmar que `DATABASE_URL` usa el **Transaction Pooler** de Supabase (normalmente puerto `6543`), no el puerto `5432` del Session Pooler ni una conexión directa. La app limita el pool local a una conexión por instancia serverless; el pooler de transacciones sigue siendo necesario para absorber la concurrencia de instancias.
+
 ## 4. CI y protección de rama
 
 `.github/workflows/ci.yml` valida PR y pushes a `main`: instalación reproducible, consistencia de migraciones, lint, TypeScript, pruebas (incluida una base PostgreSQL descartable) y build. Los valores de CI son ficticios y no apuntan a servicios externos.

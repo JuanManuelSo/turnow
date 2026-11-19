@@ -1166,9 +1166,9 @@ function BookingSummary({
 
   return (
     <dl className="grid border-t border-border">
-      <div className="grid grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)] items-center gap-3 border-b border-border py-3">
+      <div className="flex items-center justify-between gap-4 border-b border-border py-3">
         <dt className="text-xs font-semibold text-muted-foreground">Servicio</dt>
-        <dd className="m-0 grid min-w-0 gap-1 text-sm font-bold">
+        <dd className="m-0 grid min-w-0 justify-items-end gap-1 text-right text-sm font-bold wrap-anywhere">
           {service ? (
             <>
               <span className="min-w-0">{service.name}</span>
@@ -1182,17 +1182,17 @@ function BookingSummary({
         </dd>
       </div>
       {visibleStep >= 1 && (
-        <div className="grid grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)] items-center gap-3 border-b border-border py-3">
+        <div className="flex items-center justify-between gap-4 border-b border-border py-3">
           <dt className="text-xs font-semibold text-muted-foreground">
             Profesional
           </dt>
-          <dd className="m-0 min-w-0 text-sm font-bold">{professionalName}</dd>
+          <dd className="m-0 min-w-0 text-right text-sm font-bold wrap-anywhere">{professionalName}</dd>
         </div>
       )}
       {visibleStep >= 1 && (
-        <div className="grid grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)] items-center gap-3 border-b border-border py-3">
+        <div className="flex items-center justify-between gap-4 border-b border-border py-3">
           <dt className="text-xs font-semibold text-muted-foreground">Sede</dt>
-          <dd className="m-0 grid min-w-0 gap-1 text-sm font-bold">
+          <dd className="m-0 grid min-w-0 justify-items-end gap-1 text-right text-sm font-bold wrap-anywhere">
             <span className="min-w-0">
               {location
                 ? location.name
@@ -1207,11 +1207,11 @@ function BookingSummary({
         </div>
       )}
       {visibleStep >= 2 && (
-        <div className="grid grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)] items-center gap-3 border-b border-border py-3">
+        <div className="flex items-center justify-between gap-4 border-b border-border py-3">
           <dt className="text-xs font-semibold text-muted-foreground">
             Día y horario
           </dt>
-          <dd className="m-0 grid min-w-0 gap-1 text-sm font-bold">
+          <dd className="m-0 grid min-w-0 justify-items-end gap-1 text-right text-sm font-bold wrap-anywhere">
             <span className="min-w-0">{dateLabel(date)}</span>
             <small className="text-xs font-normal text-muted-foreground">
               {time

@@ -27,20 +27,20 @@ export function Summary({
   );
   return (
     <dl className="summary-list my-5 grid gap-0 border-t border-border">
-      <div className={`summary-row grid gap-3 border-b border-border py-3 ${onEdit ? "grid-cols-[minmax(76px,.7fr)_minmax(0,1.3fr)_auto]" : "grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)]"}`}>
+      <div className="summary-row flex items-center justify-between gap-4 border-b border-border py-3">
         <dt className="text-xs font-semibold text-muted-foreground">Servicio</dt>
-        <dd className="m-0 grid min-w-0 gap-1 text-sm font-bold">
-          <span className="grid min-w-0 gap-1">
+        <dd className="m-0 grid min-w-0 justify-items-end gap-1 text-right text-sm font-bold [overflow-wrap:anywhere]">
+          <span className="grid min-w-0 justify-items-end gap-1">
             {s.name}
-            <small>{s.duration} minutos</small>
+            <small className="text-xs font-normal text-muted-foreground">{s.duration} minutos</small>
           </span>
         </dd>
         {editButton(0, "servicio")}
       </div>
       {visibleStep >= 1 && (
-        <div className={`summary-row grid gap-3 border-b border-border py-3 ${onEdit ? "grid-cols-[minmax(76px,.7fr)_minmax(0,1.3fr)_auto]" : "grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)]"}`}>
+        <div className="summary-row flex items-center justify-between gap-4 border-b border-border py-3">
           <dt className="text-xs font-semibold text-muted-foreground">Profesional</dt>
-          <dd className="m-0 min-w-0 text-sm font-bold">
+          <dd className="m-0 min-w-0 text-right text-sm font-bold [overflow-wrap:anywhere]">
             <span className="min-w-0">
               {team.find((p) => p.id === professional)?.name ||
                 "A asignar al confirmar"}
@@ -50,9 +50,9 @@ export function Summary({
         </div>
       )}
       {visibleStep >= 1 && (
-        <div className={`summary-row grid gap-3 border-b border-border py-3 ${onEdit ? "grid-cols-[minmax(76px,.7fr)_minmax(0,1.3fr)_auto]" : "grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)]"}`}>
+        <div className="summary-row flex items-center justify-between gap-4 border-b border-border py-3">
           <dt className="text-xs font-semibold text-muted-foreground">Sede</dt>
-          <dd className="m-0 min-w-0 text-sm font-bold">
+          <dd className="m-0 min-w-0 text-right text-sm font-bold [overflow-wrap:anywhere]">
             <span className="min-w-0">
               {location ? locationAddress(location) : "Todavía sin elegir"}
             </span>
@@ -61,12 +61,12 @@ export function Summary({
         </div>
       )}
       {visibleStep >= 2 && (
-        <div className={`summary-row grid gap-3 border-b border-border py-3 ${onEdit ? "grid-cols-[minmax(76px,.7fr)_minmax(0,1.3fr)_auto]" : "grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)]"}`}>
+        <div className="summary-row flex items-center justify-between gap-4 border-b border-border py-3">
           <dt className="text-xs font-semibold text-muted-foreground">Día y horario</dt>
-          <dd className="m-0 grid min-w-0 gap-1 text-sm font-bold">
-            <span className="grid min-w-0 gap-1">
+          <dd className="m-0 grid min-w-0 justify-items-end gap-1 text-right text-sm font-bold [overflow-wrap:anywhere]">
+            <span className="grid min-w-0 justify-items-end gap-1">
               {dateLabel(date, true)}
-              <small>
+              <small className="text-xs font-normal text-muted-foreground">
                 {time ? `${time} h · Rosario` : "Todavía sin elegir"}
               </small>
             </span>

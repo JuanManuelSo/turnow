@@ -26,11 +26,15 @@ function createDatabase() {
   // serverless con muchas instancias, usar 6543: el modo preparado se apaga
   // solo y la conexión vuelve a ser segura para transaction pooling.
   const preparedStatements = url.port === '5432';
+  // Vercel puede ejecutar muchas instancias serverless en paralelo; cada una
+  // crea su propio pool. Limitarlo a una conexión por instancia evita que
+  // unas pocas funciones agoten el límite del rol runtime en PostgreSQL.
+  const serverless = process.env.VERCEL === '1';
   const client = postgres(result.data, {
     ssl: 'require',
     prepare: preparedStatements,
-    max: 5,
-    idle_timeout: 60,
+    max: serverless ? 1 : 5,
+    idle_timeout: serverless ? 20 : 60,
     connect_timeout: 10,
   });
 
