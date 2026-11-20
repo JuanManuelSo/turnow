@@ -284,6 +284,10 @@ describe('esquema PostgreSQL y migraciones', () => {
     await db.begin(async tx => {
       await tx`set local role turnow_runtime`;
       await tx`select pg_advisory_xact_lock(hashtextextended(${'turnow:schedule:' + f.business}, 0))`;
+      const [customer] = await tx`insert into app.customers (business_id, display_name, phone_normalized, email)
+        values (${f.business}, 'Cliente de prueba', '+5493415550101', 'cliente@example.com') returning id`;
+      await tx`update app.customers set display_name = 'Cliente actualizado', email = 'nuevo@example.com'
+        where business_id = ${f.business} and id = ${customer.id}`;
       const appointment = await reserve(tx, f);
       await tx`insert into app.appointment_events (business_id, appointment_id, event_type, actor_type, appointment_version)
         values (${f.business}, ${appointment}, 'created', 'system', 1)`;

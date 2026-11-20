@@ -67,6 +67,7 @@ const stepDescriptions = [
 
 const initialState: PublicBookingState = {};
 const phonePattern = /^\+[1-9]\d{7,14}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type BookingWizardProps = {
   businessSlug: string;
@@ -127,6 +128,7 @@ export function PublicBookingWizard({
   const [date, setDate] = useState(today <= maxDate ? today : maxDate);
   const [time, setTime] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(initialIdempotencyKey);
   const [availability, setAvailability] = useState<{
@@ -138,6 +140,7 @@ export function PublicBookingWizard({
   const [error, setError] = useState("");
   const [contactErrors, setContactErrors] = useState<{
     name?: string;
+    email?: string;
     phone?: string;
   }>({});
   const [dismissedActionError, setDismissedActionError] = useState<string | null>(
@@ -257,6 +260,9 @@ export function PublicBookingWizard({
   const phoneError =
     contactErrors.phone ??
     (showServerFields ? state.fields?.customerPhone : undefined);
+  const emailError =
+    contactErrors.email ??
+    (showServerFields ? state.fields?.customerEmail : undefined);
   const timezoneHint = timezoneLabel(timezone, date);
 
   function resetIdempotencyKey() {
@@ -361,18 +367,23 @@ export function PublicBookingWizard({
     }
     if (currentStep === 3) {
       const cleanName = name.trim();
+      const cleanEmail = email.trim().toLowerCase();
       const cleanPhone = normalizePhone(phone);
-      const nextErrors: { name?: string; phone?: string } = {};
+      const nextErrors: { name?: string; email?: string; phone?: string } = {};
       if (!cleanName) nextErrors.name = "Ingresá tu nombre y apellido.";
+      if (cleanEmail.length > 254 || !emailPattern.test(cleanEmail)) {
+        nextErrors.email = "Ingresá un email válido.";
+      }
       if (!phonePattern.test(cleanPhone)) {
         nextErrors.phone =
           "Usá el formato internacional, por ejemplo +5493415550100.";
       }
-      if (nextErrors.name || nextErrors.phone) {
+      if (nextErrors.name || nextErrors.email || nextErrors.phone) {
         setContactErrors(nextErrors);
         return;
       }
       setName(cleanName);
+      setEmail(cleanEmail);
       setPhone(cleanPhone);
       setContactErrors({});
     }
@@ -449,6 +460,7 @@ export function PublicBookingWizard({
           <ConfirmationRow label="Profesional">
             {result.professionalName}
           </ConfirmationRow>
+          <ConfirmationRow label="Email">{result.customerEmail}</ConfirmationRow>
           {result.showPrice && (
             <ConfirmationRow label="Precio">
               {money(result.priceMinor, result.currency)}
@@ -502,6 +514,7 @@ export function PublicBookingWizard({
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="time" value={time} />
       <input type="hidden" name="customerName" value={name} />
+      <input type="hidden" name="customerEmail" value={email} />
       <input type="hidden" name="customerPhone" value={phone} />
 
       <div className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-20 py-4 max-[1100px]:grid-cols-[minmax(0,1fr)_270px] max-[1100px]:gap-10 max-[900px]:mx-auto max-[900px]:max-w-[680px] max-[900px]:grid-cols-1 max-[900px]:pb-10">
@@ -930,6 +943,41 @@ export function PublicBookingWizard({
                 />
               </FormField>
               <FormField
+                label="Email"
+                htmlFor="pb-customer-email"
+                hint="Lo guardamos con tu reserva para futuras notificaciones. La confirmación de hoy se muestra en pantalla."
+                error={emailError}
+              >
+                <Input
+                  id="pb-customer-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  enterKeyHint="done"
+                  maxLength={254}
+                  required
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.currentTarget.value);
+                    setContactErrors((current) => ({
+                      ...current,
+                      email: undefined,
+                    }));
+                    setDismissedActionError(state.error ?? "");
+                    setShowServerFields(false);
+                    setError("");
+                    resetIdempotencyKey();
+                  }}
+                  placeholder="nombre@correo.com"
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={
+                    emailError
+                      ? "pb-customer-email-error"
+                      : "pb-customer-email-hint"
+                  }
+                />
+              </FormField>
+              <FormField
                 label="Teléfono en formato internacional"
                 htmlFor="pb-customer-phone"
                 hint="Ejemplo: +5493415550100. Podés escribirlo con espacios."
@@ -968,8 +1016,8 @@ export function PublicBookingWizard({
                   size={18}
                   aria-hidden="true"
                 />
-                No necesitás crear una cuenta. Usamos tu teléfono sólo para
-                gestionar este turno.
+                No necesitás crear una cuenta. Usamos estos datos para gestionar
+                este turno; la confirmación aparece en pantalla.
               </p>
             </div>
           )}
@@ -1022,6 +1070,14 @@ export function PublicBookingWizard({
                     </dt>
                     <dd className="m-0 min-w-0 text-right text-sm font-bold leading-relaxed wrap-anywhere">
                       {name}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)] items-center gap-3 border-b border-border py-3 max-[600px]:py-2">
+                    <dt className="text-xs font-semibold text-muted-foreground">
+                      Email
+                    </dt>
+                    <dd className="m-0 min-w-0 text-right text-sm font-bold wrap-anywhere">
+                      {email}
                     </dd>
                   </div>
                   <div className="grid grid-cols-[minmax(86px,.7fr)_minmax(0,1.3fr)] items-center gap-3 border-b border-border py-3 max-[600px]:py-2">

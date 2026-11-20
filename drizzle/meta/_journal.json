@@ -71,6 +71,13 @@
       "when": 1794969000000,
       "tag": "0009_blocks_can_cover_existing_appointments",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795210000000,
+      "tag": "0010_public_booking_customer_email",
+      "breakpoints": true
     }
   ]
 }

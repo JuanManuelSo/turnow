@@ -359,7 +359,18 @@ try {
   await booking.getByRole('button', { name: 'Continuar' }).click();
   await booking.getByRole('heading', { name: 'Tus datos de contacto.' }).waitFor();
   await booking.getByLabel('Tu nombre').fill('Cliente reserva pública');
+  await booking.getByLabel('Email').fill('correo-invalido');
+  await booking.getByRole('button', { name: 'Continuar' }).click();
+  await booking.getByText('Ingresá un email válido.').waitFor();
+  assert.equal(await booking.getByRole('heading', { name: 'Tus datos de contacto.' }).count(), 1,
+    'Invalid email keeps the user on the contact step');
+  await booking.getByLabel('Email').fill('cliente.publico@example.com');
   await booking.getByLabel('Teléfono en formato internacional').fill('+5493415550188');
+  await booking.getByRole('button', { name: 'Continuar' }).click();
+  await booking.getByRole('heading', { name: 'Revisá tu turno.' }).waitFor();
+  await booking.getByRole('button', { name: 'Volver al paso 4: Tus datos' }).click();
+  assert.equal(await booking.getByLabel('Email').inputValue(), 'cliente.publico@example.com',
+    'Contact email is preserved when returning from review');
   await booking.getByRole('button', { name: 'Continuar' }).click();
   await booking.getByRole('heading', { name: 'Revisá tu turno.' }).waitFor();
   assert.equal(await page.locator('#informacion').count(), 0,
@@ -380,6 +391,7 @@ try {
   const publicCode = await page.locator('.pb-code-block code').innerText();
   assert.match(publicCode, /^[A-Z0-9_-]{32}$/);
   const [publicAppointment] = await sql`select id, status, source, selection_mode, professional_id, starts_at,
+    customer_id, customer_email,
     duration_minutes_snapshot, price_minor_snapshot, cancellation_notice_minutes_snapshot
     from app.appointments where business_id = ${businessId} and customer_name = 'Cliente reserva pública'`;
   assert(publicAppointment, 'Public booking persisted');
@@ -387,6 +399,15 @@ try {
   assert.equal(publicAppointment.status, 'confirmed');
   assert.equal(publicAppointment.selection_mode, 'specific');
   assert.equal(publicAppointment.professional_id, professionalId);
+  assert.equal(publicAppointment.customer_email, 'cliente.publico@example.com');
+  assert(publicAppointment.customer_id, 'Public booking is linked to its customer record');
+  const [savedCustomer] = await sql`select display_name, phone_normalized, email from app.customers
+    where business_id = ${businessId} and id = ${publicAppointment.customer_id}`;
+  assert.deepEqual(savedCustomer, {
+    display_name: 'Cliente reserva pública',
+    phone_normalized: '+5493415550188',
+    email: 'cliente.publico@example.com',
+  }, 'Customer record stores the normalized email and contact details');
   await page.goto(`${base}/dashboard?fecha=${dateValue}&sede=${agendaLocation.id}`);
   await page.getByRole('button', { name: /Cliente reserva pública/ }).waitFor();
   assert.equal(await page.getByRole('button', { name: /Cliente reserva pública/ }).count(), 1,
@@ -531,6 +552,7 @@ try {
   await anyBooking.getByRole('button', { name: '09:00' }).click();
   await anyBooking.getByRole('button', { name: 'Continuar' }).click();
   await anyBooking.getByLabel('Tu nombre').fill('Cliente cualquier profesional');
+  await anyBooking.getByLabel('Email').fill('cualquier.prof@example.com');
   await anyBooking.getByLabel('Teléfono en formato internacional').fill('+5493415550177');
   await anyBooking.getByRole('button', { name: 'Continuar' }).click();
   await anyBooking.getByRole('button', { name: 'Confirmar turno' }).click();

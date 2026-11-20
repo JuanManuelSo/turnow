@@ -31,9 +31,10 @@ describe('booking security', () => {
   });
 
   it('hashes a canonical booking payload deterministically', () => {
-    const payload = { locationId: 'a', date: '2030-06-10', time: '10:00' };
+    const payload = { locationId: 'a', date: '2030-06-10', time: '10:00', customerEmail: 'cliente@example.com' };
     expect(hashBookingRequest(payload)).toBe(hashBookingRequest(payload));
     expect(hashBookingRequest(payload)).not.toBe(hashBookingRequest({ ...payload, time: '10:15' }));
+    expect(hashBookingRequest(payload)).not.toBe(hashBookingRequest({ ...payload, customerEmail: 'otro@example.com' }));
   });
 
   it('allows public cancellation only strictly before the saved notice cutoff', () => {
