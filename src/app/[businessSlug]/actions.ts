@@ -16,7 +16,7 @@ import {
 import { getPublicBookingBusiness, getPublicBusinessIdBySlug } from '@/server/business/public-business';
 import {
   appointmentAccessCodes, appointmentEvents, appointments, bookingRequests,
-  businessSettings, businesses, calendarOccupancies, locations,
+  businessSettings, businesses, calendarOccupancies, customers, locations,
   professionalLocations, professionalServices, professionals, services,
 } from '@/server/db/schema';
 
@@ -28,6 +28,7 @@ export type PublicBookingState = {
     date: string;
     time: string;
     customerName: string;
+    customerEmail: string | null;
     locationName: string;
     locationAddress: string | null;
     serviceName: string;
@@ -82,6 +83,8 @@ const bookingSchema = z.object({
   date: z.iso.date('Elegí una fecha válida.'),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Elegí un horario disponible.'),
   customerName: z.string().trim().min(1, 'Ingresá tu nombre.').max(160, 'El nombre es demasiado largo.'),
+  customerEmail: z.string().trim().toLowerCase().max(254, 'El email es demasiado largo.')
+    .email('Ingresá un email válido.'),
   customerPhone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Usá el formato internacional, por ejemplo +5493415550100.'),
   idempotencyKey: z.uuid(),
 });
@@ -100,7 +103,7 @@ const text = (formData: FormData, key: string) => {
 
 function confirmationResult(input: {
   code: string; showPrice: boolean; appointment: {
-    startsAt: Date; customerName: string; locationNameSnapshot: string; locationAddressSnapshot: string | null;
+    startsAt: Date; customerName: string; customerEmail: string | null; locationNameSnapshot: string; locationAddressSnapshot: string | null;
     serviceNameSnapshot: string; professionalNameSnapshot: string; durationMinutesSnapshot: number;
     priceMinorSnapshot: number | null; currencySnapshot: string; cancellationNoticeMinutesSnapshot: number;
     timezoneSnapshot: string;
@@ -112,6 +115,7 @@ function confirmationResult(input: {
     hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(input.appointment.startsAt);
   return {
     code: input.code, date, time, customerName: input.appointment.customerName,
+    customerEmail: input.appointment.customerEmail,
     locationName: input.appointment.locationNameSnapshot, locationAddress: input.appointment.locationAddressSnapshot,
     serviceName: input.appointment.serviceNameSnapshot, professionalName: input.appointment.professionalNameSnapshot,
     duration: input.appointment.durationMinutesSnapshot,
@@ -129,7 +133,7 @@ export async function createPublicBooking(
   formData: FormData,
 ): Promise<PublicBookingState> {
   const parsed = bookingSchema.safeParse(Object.fromEntries([
-    'locationId', 'serviceId', 'professionalId', 'date', 'time', 'customerName', 'customerPhone', 'idempotencyKey',
+    'locationId', 'serviceId', 'professionalId', 'date', 'time', 'customerName', 'customerEmail', 'customerPhone', 'idempotencyKey',
   ].map(key => [key, text(formData, key)])));
   if (!parsed.success) return { error: 'Revisá los datos marcados y volvé a intentar.', fields: fieldErrors(parsed.error.issues) };
   const input = parsed.data;
@@ -144,7 +148,8 @@ export async function createPublicBooking(
 
   const requestHash = hashBookingRequest({
     locationId: input.locationId, serviceId: input.serviceId, professionalId: input.professionalId,
-    date: input.date, time: input.time, customerName: input.customerName, customerPhone: input.customerPhone,
+    date: input.date, time: input.time, customerName: input.customerName,
+    customerEmail: input.customerEmail, customerPhone: input.customerPhone,
   });
   try {
     const result = await getDb().transaction(async tx => {
@@ -222,9 +227,26 @@ export async function createPublicBooking(
       )).limit(1);
       if (conflict) throw new Error('Ese horario acaba de ocuparse. Conservamos tus datos; elegí otra hora.');
 
+      const [existingCustomer] = await tx.select({ id: customers.id }).from(customers).where(and(
+        eq(customers.businessId, business.id), eq(customers.phoneNormalized, input.customerPhone),
+      )).limit(1);
+      const [customer] = existingCustomer
+        ? await tx.update(customers).set({
+          displayName: input.customerName,
+          email: input.customerEmail,
+          updatedAt: new Date(),
+        }).where(and(eq(customers.businessId, business.id), eq(customers.id, existingCustomer.id)))
+          .returning({ id: customers.id })
+        : await tx.insert(customers).values({
+          businessId: business.id,
+          displayName: input.customerName,
+          phoneNormalized: input.customerPhone,
+          email: input.customerEmail,
+        }).returning({ id: customers.id });
+
       const [appointment] = await tx.insert(appointments).values({
         businessId: business.id, locationId: selection.locationId, professionalId: slot.professionalId,
-        serviceId: selection.serviceId, status: 'confirmed', source: 'public',
+        serviceId: selection.serviceId, customerId: customer.id, status: 'confirmed', source: 'public',
         selectionMode: input.professionalId === 'any' ? 'any' : 'specific', startsAt, endsAt,
         durationMinutesSnapshot: selection.duration, bufferAfterMinutesSnapshot: selection.buffer,
         priceMinorSnapshot: selection.price, currencySnapshot: selection.currency,
@@ -232,6 +254,7 @@ export async function createPublicBooking(
         locationNameSnapshot: selection.locationName, locationAddressSnapshot: selection.locationAddress,
         serviceNameSnapshot: selection.serviceName, professionalNameSnapshot: selection.professionalName,
         customerName: input.customerName, customerPhone: input.customerPhone,
+        customerEmail: input.customerEmail,
       }).returning();
 
       await tx.insert(calendarOccupancies).values({

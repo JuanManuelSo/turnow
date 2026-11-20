@@ -10,6 +10,9 @@
 - `0005_location_operator_audit.sql`: registra `location_operator` como actor en el historial de eventos.
 - `0006_overjoyed_prowler.sql`: agrega pagos manuales a las reservas.
 - `0007_public_booking_rate_limits.sql`: agrega contadores persistentes para limitar intentos públicos de reserva, consulta y cancelación.
+- `0008_reschedule_location_snapshot.sql`: habilita la actualización controlada de snapshots de sede en reprogramaciones.
+- `0009_blocks_can_cover_existing_appointments.sql`: separa las exclusiones de turnos y bloqueos para permitir guardar un bloqueo confirmado sobre un turno existente.
+- `0010_public_booking_customer_email.sql`: habilita al runtime para guardar y actualizar datos de contacto de clientes generados por reservas públicas.
 - `meta/`: snapshots y registro de Drizzle Kit; versionar junto con el SQL.
 
 `auth.users` pertenece a Supabase. Se referencia mediante FK, pero estas migraciones no crean ni modifican esa tabla.
