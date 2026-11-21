@@ -1,0 +1,3 @@
+ALTER TABLE "app"."appointments" ADD COLUMN "archived_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "appointments_cancelled_archive_idx" ON "app"."appointments" USING btree ("business_id","cancelled_at","archived_at");--> statement-breakpoint
+ALTER TABLE "app"."appointments" ADD CONSTRAINT "appointments_archived_cancelled_check" CHECK ("app"."appointments"."archived_at" is null or "app"."appointments"."status" = 'cancelled');

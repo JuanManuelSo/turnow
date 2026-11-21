@@ -277,6 +277,7 @@ export const appointments = app.table('appointments', {
   customerEmail: text('customer_email'),
   cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
   cancellationReason: text('cancellation_reason'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
   version: integer('version').default(1).notNull(),
   ...timestamps(),
 }, (t) => [
@@ -288,6 +289,7 @@ export const appointments = app.table('appointments', {
   foreignKey({ name: 'appointments_location_fk', columns: [t.businessId, t.locationId], foreignColumns: [locations.businessId, locations.id] }).onDelete('restrict'),
   foreignKey({ name: 'appointments_customer_fk', columns: [t.businessId, t.customerId], foreignColumns: [customers.businessId, customers.id] }).onDelete('restrict'),
   index('appointments_agenda_idx').on(t.businessId, t.locationId, t.startsAt),
+  index('appointments_cancelled_archive_idx').on(t.businessId, t.cancelledAt, t.archivedAt),
   index('appointments_professional_agenda_idx').on(t.businessId, t.professionalId, t.startsAt),
   index('appointments_customer_history_idx').on(t.businessId, t.customerId, t.startsAt),
   index('appointments_assignment_idx').on(t.businessId, t.professionalId, t.serviceId),
@@ -298,6 +300,7 @@ export const appointments = app.table('appointments', {
   check('appointments_snapshot_limits_check', sql`${t.bufferAfterMinutesSnapshot} >= 0 and ${t.cancellationNoticeMinutesSnapshot} >= 0 and (${t.priceMinorSnapshot} is null or ${t.priceMinorSnapshot} >= 0)`),
   check('appointments_currency_check', sql`${t.currencySnapshot} ~ '^[A-Z]{3}$'`),
   check('appointments_cancelled_at_check', sql`(${t.status} = 'cancelled') = (${t.cancelledAt} is not null)`),
+  check('appointments_archived_cancelled_check', sql`${t.archivedAt} is null or ${t.status} = 'cancelled'`),
   check('appointments_version_check', sql`${t.version} > 0`),
   check('appointments_names_check', sql`length(trim(${t.customerName})) > 0 and length(trim(${t.serviceNameSnapshot})) > 0 and length(trim(${t.professionalNameSnapshot})) > 0 and length(trim(${t.locationNameSnapshot})) > 0 and length(trim(${t.timezoneSnapshot})) > 0`),
   check('appointments_phone_check', sql`${t.customerPhone} ~ '^[+][1-9][0-9]{1,14}$'`),
