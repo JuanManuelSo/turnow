@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,9 @@ import { Archive, CalendarDays, Clock3, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui';
 import {
   archiveCancelledAppointment,
-  archiveOldCancelledAppointments,
+  archiveAllCancelledAppointments,
+  purgeArchivedCancelledAppointments,
+  permanentlyDeleteCancelledAppointment,
   restoreCancelledAppointment,
   type CancelledActionState,
 } from './actions';
@@ -24,6 +26,9 @@ type CancelledBooking = {
   cancelledAt: Date | null;
   archivedAt: Date | null;
   cancellationReason: string | null;
+  canDelete: boolean;
+  deleteBlockedByPayment: boolean;
+  deleteBlockedByEmail: boolean;
 };
 
 function formatDate(date: Date, timezone: string, options: Intl.DateTimeFormatOptions) {
@@ -37,17 +42,17 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
   </button>;
 }
 
-function ArchiveOldForm() {
+function ArchiveAllForm({ total }: { total: number }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState<CancelledActionState, FormData>(archiveOldCancelledAppointments, {});
+  const [state, action, pending] = useActionState<CancelledActionState, FormData>(archiveAllCancelledAppointments, {});
   useEffect(() => { if (state.success) router.refresh(); }, [state.success, router]);
   const [confirming, setConfirming] = useState(false);
 
-  if (confirming) return <div className="cancelled-confirm" role="group" aria-label="Confirmar archivo de cancelaciones antiguas">
-    <p>Se archivarán las cancelaciones de más de 90 días. No se borran; los datos y pagos quedan conservados.</p>
+  if (confirming) return <div className="cancelled-confirm" role="group" aria-label="Confirmar archivo de cancelaciones">
+    <p>Se moverán {total} {total === 1 ? 'turno cancelado' : 'turnos cancelados'} a Archivadas. No se borran; sus datos y pagos quedan conservados.</p>
     <div className="cancelled-confirm-actions">
       <button type="button" className="cancelled-secondary-button" onClick={() => setConfirming(false)}>Volver</button>
-      <form action={action}><SubmitButton>Confirmar archivo</SubmitButton></form>
+      <form action={action}><SubmitButton>Confirmar archivo de todos</SubmitButton></form>
     </div>
     {state.error && <p className="cancelled-feedback is-error" role="alert">{state.error}</p>}
     {state.success && <p className="cancelled-feedback" role="status">{state.success}</p>}
@@ -56,11 +61,59 @@ function ArchiveOldForm() {
 
   return <>
     <button type="button" className="cancelled-secondary-button" onClick={() => setConfirming(true)}>
-      <Archive size={16} aria-hidden="true" /> Archivar las de más de 90 días
+      <Archive size={16} aria-hidden="true" /> Archivar todos
     </button>
     {state.error && <p className="cancelled-feedback is-error" role="alert">{state.error}</p>}
     {state.success && <p className="cancelled-feedback" role="status">{state.success}</p>}
   </>;
+}
+
+function PurgeArchivedForm({ eligible, retained }: { eligible: number; retained: number }) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState<CancelledActionState, FormData>(purgeArchivedCancelledAppointments, {});
+  useEffect(() => { if (state.success) router.refresh(); }, [state.success, router]);
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming) return <>
+    <button type="button" className="cancelled-delete-button" onClick={() => setConfirming(true)}>Limpiar archivo</button>
+    {state.error && <p className="cancelled-feedback is-error" role="alert">{state.error}</p>}
+    {state.success && <p className="cancelled-feedback" role="status">{state.success}</p>}
+  </>;
+
+  return <div className="cancelled-confirm" role="group" aria-label="Confirmar eliminación definitiva">
+    <p>Se eliminarán definitivamente hasta {Math.min(eligible, 500)} turnos archivados aptos, incluidos sus códigos y eventos de gestión. No se puede deshacer. Los {retained} con pagos asociados o emails pendientes se conservarán.</p>
+    <div className="cancelled-confirm-actions">
+      <button type="button" className="cancelled-secondary-button" onClick={() => setConfirming(false)}>Volver</button>
+      <form action={action}><button className="cancelled-delete-button" type="submit" disabled={pending}>{pending ? 'Eliminando…' : 'Eliminar definitivamente'}</button></form>
+    </div>
+    {state.error && <p className="cancelled-feedback is-error" role="alert">{state.error}</p>}
+    {state.success && <p className="cancelled-feedback" role="status">{state.success}</p>}
+    {pending && <span className="sr-only" role="status">Eliminando turnos archivados…</span>}
+  </div>;
+}
+
+function DeleteOneButton({ appointmentId }: { appointmentId: string }) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<CancelledActionState>({});
+  if (!confirming) return <>
+    <button type="button" className="cancelled-delete-button is-quiet" onClick={() => setConfirming(true)}>Eliminar</button>
+    {feedback.error && <p className="cancelled-feedback is-error" role="alert">{feedback.error}</p>}
+  </>;
+
+  return <div className="cancelled-row-delete-confirm" role="group" aria-label="Confirmar eliminación definitiva">
+    <p>Eliminación permanente. No se puede deshacer.</p>
+    <div>
+      <button type="button" className="cancelled-secondary-button" onClick={() => setConfirming(false)}>Volver</button>
+      <button type="button" className="cancelled-delete-button" disabled={pending} onClick={() => startTransition(async () => {
+        const result = await permanentlyDeleteCancelledAppointment(appointmentId);
+        setFeedback(result);
+        if (result.success) router.refresh();
+      })}>{pending ? 'Eliminando…' : 'Confirmar eliminación'}</button>
+    </div>
+    {feedback.error && <p className="cancelled-feedback is-error" role="alert">{feedback.error}</p>}
+    {pending && <span className="sr-only" role="status">Eliminando turno…</span>}
+  </div>;
 }
 
 function CancelledRow({ booking, canArchive, showArchived }: { booking: CancelledBooking; canArchive: boolean; showArchived: boolean }) {
@@ -91,11 +144,15 @@ function CancelledRow({ booking, canArchive, showArchived }: { booking: Cancelle
       {state.error && <p className="cancelled-feedback is-error" role="alert">{state.error}</p>}
       {state.success && <p className="cancelled-feedback" role="status">{state.success}</p>}
     </div>
-    {canArchive && <form action={action} className="cancelled-row-action">
-      <input type="hidden" name="appointmentId" value={booking.id} />
-      <SubmitButton>{showArchived ? 'Restaurar' : 'Archivar'}</SubmitButton>
-      {pending && <span className="sr-only" role="status">Archivando turno…</span>}
-    </form>}
+    {canArchive && <div className="cancelled-row-actions">
+      <form action={action} className="cancelled-row-action">
+        <input type="hidden" name="appointmentId" value={booking.id} />
+        <SubmitButton>{showArchived ? 'Restaurar' : 'Archivar'}</SubmitButton>
+        {pending && <span className="sr-only" role="status">Guardando turno…</span>}
+      </form>
+      {showArchived && booking.canDelete && <DeleteOneButton appointmentId={booking.id} />}
+      {showArchived && !booking.canDelete && <p className="cancelled-delete-note">{booking.deleteBlockedByPayment ? 'Se conserva por tener pagos asociados.' : booking.deleteBlockedByEmail ? 'Esperá a que se cancelen sus emails.' : 'Este registro debe conservarse.'}</p>}
+    </div>}
   </li>;
 }
 
@@ -104,11 +161,11 @@ export function CancelledAppointments({
   total,
   activeTotal,
   archivedTotal,
-  olderThanRetention,
+  deletableTotal,
+  retainedTotal,
   listLimit,
   page,
   pageCount,
-  archiveAfterDays,
   canArchive,
   showArchived,
 }: {
@@ -116,11 +173,11 @@ export function CancelledAppointments({
   total: number;
   activeTotal: number;
   archivedTotal: number;
-  olderThanRetention: number;
+  deletableTotal: number;
+  retainedTotal: number;
   listLimit: number;
   page: number;
   pageCount: number;
-  archiveAfterDays: number;
   canArchive: boolean;
   showArchived: boolean;
 }) {
@@ -150,12 +207,18 @@ export function CancelledAppointments({
 
     <section className="cancelled-summary" aria-label="Resumen de cancelaciones">
       <div><span>{showArchived ? 'En archivo' : 'En esta lista'}</span><strong>{total}</strong><small>{showArchived ? 'Registros conservados' : 'Cancelaciones sin archivar'}</small></div>
-      <div><span>{showArchived ? 'Visibles' : 'Para ordenar'}</span><strong>{showArchived ? Math.min(total, listLimit) : olderThanRetention}</strong><small>{showArchived ? 'Mostradas en esta vista' : `Con más de ${archiveAfterDays} días`}</small></div>
+      <div><span>{showArchived ? 'Eliminables' : 'Archivadas'}</span><strong>{showArchived ? deletableTotal : archivedTotal}</strong><small>{showArchived ? 'Sin pagos ni emails activos' : 'Fuera de la lista activa'}</small></div>
     </section>
 
-    {canArchive && !showArchived && olderThanRetention > 0 && <section className="cancelled-maintenance" aria-label="Limpieza del historial">
-      <div><strong>¿Querés despejar esta lista?</strong><p>Archivá en un paso las cancelaciones antiguas. El historial y los pagos se conservan.</p></div>
-      <ArchiveOldForm />
+    {canArchive && !showArchived && total > 0 && <section className="cancelled-maintenance" aria-label="Limpieza del historial">
+      <div><strong>¿Querés despejar esta lista?</strong><p>Archivá todos los cancelados en un paso. El historial y los pagos se conservan.</p></div>
+      <ArchiveAllForm total={total} />
+    </section>}
+    {canArchive && showArchived && total > 0 && <section className="cancelled-maintenance is-destructive" aria-label="Limpieza definitiva del archivo">
+      <div><strong>Limpiar el archivo</strong><p>{deletableTotal
+        ? `${deletableTotal} registros sin pagos ni emails pendientes se pueden eliminar. ${retainedTotal} registros se conservarán.`
+        : `Los ${retainedTotal} registros tienen pagos asociados o emails pendientes; se conservan para proteger el historial.`}</p></div>
+      {deletableTotal > 0 && <PurgeArchivedForm eligible={deletableTotal} retained={retainedTotal} />}
     </section>}
 
     <section className="cancelled-board" aria-labelledby="cancelled-list-title">
@@ -182,7 +245,9 @@ export function CancelledAppointments({
           ? <Link href={`/dashboard/cancelados?${showArchived ? 'vista=archivados&' : ''}pagina=${page + 1}`}>Siguiente</Link>
           : <span aria-disabled="true">Siguiente</span>}
       </nav>}
-      {total > listLimit && <p className="cancelled-list-note">{showArchived ? 'El archivo conserva el historial completo.' : `Archivá las cancelaciones de más de ${archiveAfterDays} días para mantener esta lista manejable.`}</p>}
+      {total > listLimit && <p className="cancelled-list-note">{showArchived
+        ? 'Se muestran 10 por página. Los registros no aptos para eliminación se conservan por tener pagos o emails activos.'
+        : 'Se muestran 10 por página. Podés archivar todos los cancelados para despejar la agenda diaria.'}</p>}
     </section>
   </div>;
 }
