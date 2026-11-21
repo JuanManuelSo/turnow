@@ -78,6 +78,13 @@
       "when": 1795210000000,
       "tag": "0010_public_booking_customer_email",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795227871258,
+      "tag": "0011_appointment_email_notifications",
+      "breakpoints": true
     }
   ]
 }

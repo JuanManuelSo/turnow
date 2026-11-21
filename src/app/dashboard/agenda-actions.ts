@@ -13,6 +13,9 @@ import {
 import { localDateTimeToInstant } from '@/lib/timezone';
 import { getAvailableSlots } from '@/server/business/availability';
 import { combineAnyProfessionalSlots } from '@/server/business/availability-engine';
+import {
+  cancelAppointmentEmailNotifications, refreshAppointmentReminder,
+} from '@/server/email/notifications';
 
 export type AgendaActionState = { error?: string; success?: string; fields?: Record<string, string> };
 
@@ -270,14 +273,14 @@ export async function updateAppointmentStatus(formData: FormData): Promise<void>
   const status = z.enum(['attended', 'no_show', 'cancelled']).safeParse(text(formData, 'status'));
   const id = z.string().uuid().safeParse(appointmentId);
   if (!status.success || !id.success) return;
-  await getDb().transaction(async tx => {
+  const updated = await getDb().transaction(async tx => {
     await lockBusinessSchedule(tx, access.membership.businessId);
     const [appointment] = await tx.select().from(appointments).where(and(
       eq(appointments.businessId, access.membership.businessId), eq(appointments.id, id.data),
     )).limit(1);
-    if (!appointment || (access.membership.role === 'location_operator' && appointment.locationId !== access.membership.locationId)) return;
-    if (appointment.status !== 'confirmed') return;
-    if (status.data === 'no_show' && appointment.startsAt.getTime() > Date.now()) return;
+    if (!appointment || (access.membership.role === 'location_operator' && appointment.locationId !== access.membership.locationId)) return false;
+    if (appointment.status !== 'confirmed') return false;
+    if (status.data === 'no_show' && appointment.startsAt.getTime() > Date.now()) return false;
     const nextVersion = appointment.version + 1;
     await tx.update(appointments).set({
       status: status.data,
@@ -294,7 +297,12 @@ export async function updateAppointmentStatus(formData: FormData): Promise<void>
       actorType: actorType(access.membership.role), actorUserId: access.user.id,
       appointmentVersion: nextVersion, changes: { from: appointment.status, to: status.data },
     });
+    return true;
   });
+  if (updated && status.data === 'cancelled') {
+    try { await cancelAppointmentEmailNotifications(id.data); }
+    catch (error) { console.error('No se pudo cancelar el recordatorio por email del turno.', error); }
+  }
   revalidatePath('/dashboard');
 }
 
@@ -554,6 +562,8 @@ export async function rescheduleAppointment(_previous: AgendaActionState, formDa
   }); } catch (error) {
     return { error: error instanceof Error ? error.message : 'No se pudo reprogramar el turno.' };
   }
+  try { await refreshAppointmentReminder(parsed.data.appointmentId); }
+  catch (error) { console.error('No se pudo actualizar el recordatorio por email del turno.', error); }
   revalidatePath('/dashboard');
   return { success: 'Turno reprogramado.' };
 }

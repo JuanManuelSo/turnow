@@ -56,6 +56,7 @@ Ver [instrucciones de migraciones y permisos](drizzle/README.md). `npm run db:mi
 - [Performance de la reserva pública](docs/PERFORMANCE.md)
 - [Migrar Supabase a São Paulo](docs/SUPABASE_SAO_PAULO.md)
 - [Preparar staging en Vercel](docs/DEPLOYMENT_STAGING.md)
+- [Configurar emails con Resend](docs/RESEND_SETUP.md)
 
 ## Estructura
 
