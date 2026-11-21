@@ -99,6 +99,28 @@ describe('esquema PostgreSQL y migraciones', () => {
     expect(count).toBe(22);
   });
 
+  it('archiva cancelaciones sin borrar el turno y rechaza archivar turnos activos', async () => {
+    const f = await fixture();
+    const cancelledId = await db.begin(tx => reserve(tx, f));
+    const activeId = await db.begin(tx => reserve(tx, f, { starts: '2030-01-02T12:00:00Z', professional: f.otherProfessional }));
+    const cancelledAt = new Date().toISOString();
+    await db.begin(async tx => {
+      await tx`update app.appointments set status = 'cancelled', cancelled_at = ${cancelledAt}
+        where business_id = ${f.business} and id = ${cancelledId}`;
+      await tx`update app.calendar_occupancies set is_active = false
+        where business_id = ${f.business} and appointment_id = ${cancelledId}`;
+    });
+    await db`update app.appointments set archived_at = now()
+      where business_id = ${f.business} and id = ${cancelledId}`;
+
+    const [archived] = await db`select status, archived_at from app.appointments
+      where business_id = ${f.business} and id = ${cancelledId}`;
+    expect(archived.status).toBe('cancelled');
+    expect(archived.archived_at).not.toBeNull();
+    await expect(db`update app.appointments set archived_at = now()
+      where business_id = ${f.business} and id = ${activeId}`).rejects.toThrow();
+  });
+
   it('conserva cobros manuales y permite corregirlos sin borrar el original', async () => {
     const f = await fixture();
     const appointment = await db.begin(tx => reserve(tx, f));

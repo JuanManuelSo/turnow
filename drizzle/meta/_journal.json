@@ -85,6 +85,13 @@
       "when": 1795227871258,
       "tag": "0011_appointment_email_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795288794093,
+      "tag": "0012_archive_cancelled_appointments",
+      "breakpoints": true
     }
   ]
 }

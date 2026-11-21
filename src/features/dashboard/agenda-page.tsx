@@ -13,6 +13,7 @@ import {
   CreditCard,
   MapPin,
   Plus,
+  RotateCw,
   UserRound,
 } from "lucide-react";
 import { Button, FormField, Input, Select } from "@/components/ui";
@@ -176,6 +177,13 @@ export function AgendaPage({
   useEffect(() => {
     if (createState.success) router.refresh();
   }, [createState.success, router]);
+  useEffect(() => {
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => document.removeEventListener("visibilitychange", refreshOnReturn);
+  }, [router]);
   function navigate(nextDate: string, nextLocation = selectedLocation?.id) {
     const query = new URLSearchParams({ fecha: nextDate });
     if (role === "owner" && nextLocation) query.set("sede", nextLocation);
@@ -194,14 +202,19 @@ export function AgendaPage({
             {businessName} · Turnos del equipo, atención y cobros.
           </p>
         </div>
-        <Button
-          onClick={() => setCreating(true)}
-          disabled={
-            !selectedLocation || !professionals.length || !services.length
-          }
-        >
-          <Plus size={17} aria-hidden="true" /> Nuevo turno
-        </Button>
+        <div className="agenda-header-actions">
+          <Button variant="secondary" onClick={() => router.refresh()}>
+            <RotateCw size={16} aria-hidden="true" /> Actualizar
+          </Button>
+          <Button
+            onClick={() => setCreating(true)}
+            disabled={
+              !selectedLocation || !professionals.length || !services.length
+            }
+          >
+            <Plus size={17} aria-hidden="true" /> Nuevo turno
+          </Button>
+        </div>
       </header>
 
       {(!professionals.length || !services.length) && (

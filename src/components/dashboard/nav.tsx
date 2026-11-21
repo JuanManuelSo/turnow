@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Clock3, Globe2, MapPin, Scissors, Settings2, Users } from 'lucide-react';
+import { Archive, CalendarDays, Clock3, Globe2, MapPin, Scissors, Settings2, Users } from 'lucide-react';
 import { PAGE_EDITOR_ENABLED } from '@/config/features';
 
 const ownerItems = [
   { href: '/dashboard', label: 'Agenda', icon: CalendarDays },
+  { href: '/dashboard/cancelados', label: 'Cancelados', icon: Archive },
   { href: '/dashboard/sedes', label: 'Sedes', icon: MapPin },
   { href: '/dashboard/servicios', label: 'Servicios', icon: Scissors },
   { href: '/dashboard/profesionales', label: 'Profesionales', icon: Users },
@@ -17,6 +18,7 @@ const ownerItems = [
 
 const operatorItems = [
   { href: '/dashboard', label: 'Agenda', icon: CalendarDays },
+  { href: '/dashboard/cancelados', label: 'Cancelados', icon: Archive },
 ];
 
 const visibleOwnerItems = PAGE_EDITOR_ENABLED
