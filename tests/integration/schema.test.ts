@@ -96,7 +96,7 @@ async function reserve(q: Query, f: Fixture, options: {
 describe('esquema PostgreSQL y migraciones', () => {
   it('aplica las migraciones y puede ejecutar el migrador nuevamente', async () => {
     const [{ count }] = await db`select count(*)::int as count from information_schema.tables where table_schema = 'app'`;
-    expect(count).toBe(21);
+    expect(count).toBe(22);
   });
 
   it('conserva cobros manuales y permite corregirlos sin borrar el original', async () => {

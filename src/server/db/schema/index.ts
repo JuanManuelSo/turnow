@@ -377,6 +377,29 @@ export const appointmentEvents = app.table('appointment_events', {
   check('appointment_events_changes_check', sql`jsonb_typeof(${t.changes}) = 'object'`),
 ]);
 
+export const appointmentEmailNotifications = app.table('appointment_email_notifications', {
+  id: id(), businessId: businessId(),
+  appointmentId: uuid('appointment_id').notNull(),
+  kind: text('kind', { enum: ['confirmation', 'reminder'] }).notNull(),
+  status: text('status', { enum: ['pending', 'scheduled', 'sent', 'cancel_pending', 'cancelled', 'skipped'] })
+    .default('pending').notNull(),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  resendEmailId: text('resend_email_id'),
+  attempts: integer('attempts').default(0).notNull(),
+  lastError: text('last_error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  ...timestamps(),
+}, (t) => [
+  unique('appointment_email_notifications_business_id_unique').on(t.businessId, t.id),
+  unique('appointment_email_notifications_appointment_kind_unique').on(t.businessId, t.appointmentId, t.kind),
+  foreignKey({ name: 'appointment_email_notifications_appointment_fk', columns: [t.businessId, t.appointmentId], foreignColumns: [appointments.businessId, appointments.id] }).onDelete('restrict'),
+  index('appointment_email_notifications_queue_idx').on(t.status, t.scheduledAt),
+  check('appointment_email_notifications_kind_check', sql`${t.kind} in ('confirmation', 'reminder')`),
+  check('appointment_email_notifications_status_check', sql`${t.status} in ('pending', 'scheduled', 'sent', 'cancel_pending', 'cancelled', 'skipped')`),
+  check('appointment_email_notifications_attempts_check', sql`${t.attempts} >= 0`),
+  check('appointment_email_notifications_resend_id_check', sql`${t.status} <> 'scheduled' or ${t.resendEmailId} is not null`),
+]);
+
 export const appointmentPayments = app.table('appointment_payments', {
   id: id(), businessId: businessId(),
   appointmentId: uuid('appointment_id').notNull(),

@@ -15,7 +15,10 @@ import {
 } from '@/server/business/booking-security';
 import { getPublicBookingBusiness, getPublicBusinessIdBySlug } from '@/server/business/public-business';
 import {
-  appointmentAccessCodes, appointmentEvents, appointments, bookingRequests,
+  cancelAppointmentEmailNotifications, processAppointmentEmailNotifications, reminderTime,
+} from '@/server/email/notifications';
+import {
+  appointmentAccessCodes, appointmentEmailNotifications, appointmentEvents, appointments, bookingRequests,
   businessSettings, businesses, calendarOccupancies, customers, locations,
   professionalLocations, professionalServices, professionals, services,
 } from '@/server/db/schema';
@@ -277,9 +280,28 @@ export async function createPublicBooking(
         actorType: 'customer', actorUserId: null, appointmentVersion: appointment.version,
         changes: { source: 'public', startsAt: startsAt.toISOString(), selectionMode: appointment.selectionMode },
       });
+      const reminderAt = reminderTime(startsAt, selection.locationTimezone);
+      const now = new Date();
+      await tx.insert(appointmentEmailNotifications).values([
+        {
+          businessId: business.id, appointmentId: appointment.id, kind: 'confirmation',
+          status: 'pending', scheduledAt: now,
+        },
+        {
+          businessId: business.id, appointmentId: appointment.id, kind: 'reminder',
+          status: reminderAt.getTime() > now.getTime() && reminderAt.getTime() < startsAt.getTime()
+            ? 'pending' : 'skipped',
+          scheduledAt: reminderAt,
+        },
+      ]);
       return { code, appointment, showPrice: selection.showPrice };
     });
 
+    try {
+      await processAppointmentEmailNotifications(result.appointment.id);
+    } catch (emailError) {
+      console.error('La reserva se confirmó, pero no se pudieron procesar sus notificaciones.', emailError);
+    }
     revalidatePath('/dashboard');
     return { result: confirmationResult({ ...result, businessSlug }) };
   } catch (error) {
@@ -292,6 +314,7 @@ const accessCodeSchema = z.string().trim().min(24).max(64).regex(/^[A-Z0-9_-]+$/
 export type PublicCancellationLookup = {
   error?: string;
   appointment?: {
+    id: string;
     date: string; time: string; serviceName: string; locationName: string; locationAddress: string | null;
     professionalName: string; customerName: string; status: 'confirmed' | 'cancelled' | 'attended' | 'no_show';
     cancellationAllowed: boolean; contactPhone: string | null;
@@ -321,6 +344,7 @@ function cancellationDetails(row: NonNullable<Awaited<ReturnType<typeof findPubl
   const cancellationAllowed = appointment.status === 'confirmed'
     && isWithinCancellationWindow(appointment.startsAt, appointment.cancellationNoticeMinutesSnapshot);
   return {
+    id: appointment.id,
     date: new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(appointment.startsAt),
     time: new Intl.DateTimeFormat('en-GB', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(appointment.startsAt),
     serviceName: appointment.serviceNameSnapshot, locationName: appointment.locationNameSnapshot,
@@ -399,6 +423,13 @@ export async function cancelPublicBooking(businessSlug: string, rawCode: string)
       });
       return { appointment: cancellationDetails({ appointment: updated, locationPhone: row.locationPhone }) } as PublicCancellationLookup;
     });
+    if (response.appointment?.status === 'cancelled') {
+      try {
+        await cancelAppointmentEmailNotifications(response.appointment.id);
+      } catch (emailError) {
+        console.error('No se pudo cancelar el recordatorio por email del turno.', emailError);
+      }
+    }
     revalidatePath('/dashboard');
     return response;
   } catch {
