@@ -92,6 +92,13 @@
       "when": 1795288794093,
       "tag": "0012_archive_cancelled_appointments",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795291204050,
+      "tag": "0013_purge_archived_appointments",
+      "breakpoints": true
     }
   ]
 }

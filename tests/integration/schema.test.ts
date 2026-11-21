@@ -121,6 +121,49 @@ describe('esquema PostgreSQL y migraciones', () => {
       where business_id = ${f.business} and id = ${activeId}`).rejects.toThrow();
   });
 
+  it('purga solo turnos archivados sin pagos ni emails activos y elimina sus dependencias', async () => {
+    const f = await fixture();
+    const appointmentId = await db.begin(tx => reserve(tx, f));
+    const paidAppointmentId = await db.begin(tx => reserve(tx, f, { professional: f.otherProfessional }));
+    const idempotencyKey = randomUUID();
+    await db.begin(async tx => {
+      await tx`update app.appointments set status = 'cancelled', cancelled_at = now(), archived_at = now()
+        where business_id = ${f.business} and id = ${appointmentId}`;
+      await tx`update app.calendar_occupancies set is_active = false
+        where business_id = ${f.business} and appointment_id = ${appointmentId}`;
+      await tx`insert into app.appointment_access_codes
+        (business_id, appointment_id, code_hash, code_ciphertext, encryption_key_version)
+        values (${f.business}, ${appointmentId}, ${'b'.repeat(64)}, 'test-envelope', 1)`;
+      await tx`insert into app.booking_requests
+        (business_id, idempotency_key, request_hash, appointment_id)
+        values (${f.business}, ${idempotencyKey}, ${'c'.repeat(64)}, ${appointmentId})`;
+      await tx`insert into app.appointment_events
+        (business_id, appointment_id, event_type, actor_type, appointment_version)
+        values (${f.business}, ${appointmentId}, 'cancelled', 'customer', 2)`;
+      await tx`insert into app.appointment_email_notifications
+        (business_id, appointment_id, kind, status, scheduled_at)
+        values (${f.business}, ${appointmentId}, 'reminder', 'cancelled', now())`;
+      await tx`update app.appointments set status = 'cancelled', cancelled_at = now(), archived_at = now()
+        where business_id = ${f.business} and id = ${paidAppointmentId}`;
+      await tx`update app.calendar_occupancies set is_active = false
+        where business_id = ${f.business} and appointment_id = ${paidAppointmentId}`;
+      await tx`insert into app.appointment_payments
+        (business_id, appointment_id, amount_minor, currency, method)
+        values (${f.business}, ${paidAppointmentId}, 10000, 'ARS', 'cash')`;
+      const [result] = await tx`select app.purge_archived_cancelled_appointments(${f.business}, array[${appointmentId}]::uuid[]) as deleted`;
+      expect(result.deleted).toBe(1);
+      const [protectedResult] = await tx`select app.purge_archived_cancelled_appointments(${f.business}, array[${paidAppointmentId}]::uuid[]) as deleted`;
+      expect(protectedResult.deleted).toBe(0);
+    });
+
+    const [{ count }] = await db`select count(*)::int as count from app.appointments where id = ${appointmentId}`;
+    expect(count).toBe(0);
+    const [{ events }] = await db`select count(*)::int as events from app.appointment_events where appointment_id = ${appointmentId}`;
+    expect(events).toBe(0);
+    const [{ emails }] = await db`select count(*)::int as emails from app.appointment_email_notifications where appointment_id = ${appointmentId}`;
+    expect(emails).toBe(0);
+  });
+
   it('conserva cobros manuales y permite corregirlos sin borrar el original', async () => {
     const f = await fixture();
     const appointment = await db.begin(tx => reserve(tx, f));
