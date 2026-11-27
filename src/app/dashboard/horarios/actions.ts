@@ -84,5 +84,6 @@ export async function saveScheduleAction(_previous: PanelActionState, formData: 
 
   revalidatePath('/dashboard/horarios');
   revalidatePath('/dashboard');
+  revalidatePath(`/${membership.businessSlug}`);
   redirect(`/dashboard/horarios?sede=${locationId}&ambito=${professionalId ?? 'sede'}&guardado=1&v=${Date.now()}`);
 }

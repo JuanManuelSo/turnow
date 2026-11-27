@@ -46,6 +46,7 @@ export async function saveSettingsAction(_previous: PanelActionState, formData: 
 
   revalidatePath('/dashboard/configuracion');
   revalidatePath('/dashboard');
+  revalidatePath(`/${membership.businessSlug}`);
   redirect(`/dashboard/configuracion?guardado=1&v=${Date.now()}`);
 }
 

@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { randomUUID } from "node:crypto";
 import { PublicBookingPage } from "@/features/public-booking/public-booking-flow";
 import { getPublicBusinessBySlug } from "@/server/business/public-business";
 import type { PageTheme } from "@/server/db/schema";
 
-export const dynamic = "force-dynamic";
+// La página es la misma para todos hasta que el negocio edite su configuración.
+// La disponibilidad real se consulta en vivo por server action al reservar.
+export const revalidate = 60;
+
+// Habilita ISR on-demand sin consultar la base durante el build: la primera
+// visita de cada slug genera y cachea la página; las siguientes salen de caché
+// hasta que venza el minuto o el panel invalide la ruta.
+export async function generateStaticParams() {
+  return [];
+}
 
 const defaultTheme: PageTheme = {
   schema_version: 1,
@@ -87,7 +95,6 @@ export default async function PublicBusinessPage({
       today={today}
       maxDate={addCalendarDays(today, business.horizonDays)}
       enabled={business.publicBookingEnabled}
-      idempotencyKey={randomUUID()}
     />
   );
 }

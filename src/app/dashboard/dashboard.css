@@ -42,7 +42,7 @@
   grid-template-columns: 248px minmax(0, 1fr);
   background: var(--panel-bg);
   color: var(--panel-ink);
-  font-family: Manrope, Arial, sans-serif;
+  font-family: var(--font-manrope), Arial, sans-serif;
 }
 
 .panel ::selection {

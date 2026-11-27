@@ -120,5 +120,6 @@ export async function saveProfessionalAction(_previous: PanelActionState, formDa
   revalidatePath('/dashboard/profesionales');
   revalidatePath('/dashboard/horarios');
   revalidatePath('/dashboard');
+  revalidatePath(`/${membership.businessSlug}`);
   redirect(`/dashboard/profesionales?editar=${savedId}&guardado=1&v=${Date.now()}`);
 }
