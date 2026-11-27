@@ -12,8 +12,8 @@ import type { PageTheme } from "@/server/db/schema";
 import {
   PublicPageFooter,
   PublicPageHeader,
-  publicPageStyle,
 } from "./public-page-chrome";
+import { publicPageStyle } from "./public-page-style";
 
 function statusText(status: string) {
   if (status === "cancelled") return "Este turno ya está cancelado.";

@@ -69,7 +69,7 @@ const initialState: PublicBookingState = {};
 const phonePattern = /^\+[1-9]\d{7,14}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type BookingWizardProps = {
+export type BookingWizardProps = {
   businessSlug: string;
   currency: string;
   timezone: string;
