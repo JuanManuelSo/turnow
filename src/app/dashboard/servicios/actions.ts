@@ -66,5 +66,6 @@ export async function saveServiceAction(_previous: PanelActionState, formData: F
   revalidatePath('/dashboard/servicios');
   revalidatePath('/dashboard/profesionales');
   revalidatePath('/dashboard');
+  revalidatePath(`/${membership.businessSlug}`);
   redirect(`/dashboard/servicios?editar=${savedId}&guardado=1&v=${Date.now()}`);
 }

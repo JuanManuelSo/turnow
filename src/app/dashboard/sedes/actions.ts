@@ -85,6 +85,7 @@ export async function saveLocationAction(_previous: PanelActionState, formData: 
 
   revalidatePath('/dashboard/sedes');
   revalidatePath('/dashboard');
+  revalidatePath(`/${membership.businessSlug}`);
   redirect(`/dashboard/sedes?editar=${savedId}&guardado=1&v=${Date.now()}`);
 }
 
@@ -110,5 +111,6 @@ export async function setPrimaryLocationAction(formData: FormData) {
 
   revalidatePath('/dashboard/sedes');
   revalidatePath('/dashboard');
+  revalidatePath(`/${membership.businessSlug}`);
   redirect(`/dashboard/sedes?principal=${id}`);
 }

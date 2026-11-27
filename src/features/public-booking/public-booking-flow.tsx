@@ -47,7 +47,6 @@ export function PublicBookingPage({
   today,
   maxDate,
   enabled,
-  idempotencyKey,
 }: {
   businessSlug: string;
   businessName: string;
@@ -66,11 +65,11 @@ export function PublicBookingPage({
   today: string;
   maxDate: string;
   enabled: boolean;
-  idempotencyKey: string;
 }) {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string>();
-  const [sessionKey, setSessionKey] = useState(idempotencyKey);
+  // Se genera en el navegador al abrir la reserva: así la página se puede cachear.
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
   const isReferenceBusiness = businessSlug === "peluqueria-de-hombres";
   const canBook =
     enabled &&
@@ -227,7 +226,7 @@ export function PublicBookingPage({
           aria-label="Reserva de turno"
         >
           <div className="mx-auto w-full max-w-[1180px]">
-            {canBook ? (
+            {canBook && sessionKey ? (
               <PublicBookingWizard
                 key={`${selectedServiceId ?? "any"}-${sessionKey}`}
                 businessSlug={businessSlug}

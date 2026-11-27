@@ -69,6 +69,36 @@ La varianza restante es de red/Supabase. El próximo salto es la región: con
 São Paulo el round trip esperado baja a decenas de milisegundos, por lo que un
 cambio de fecha debería quedar alrededor de **100–200 ms** caliente.
 
+## Página pública: región y caché
+
+- Las funciones se despliegan en `gru1` (São Paulo) desde `vercel.json`, junto
+  a Supabase en `sa-east-1`. Antes corrían en la región por defecto de Vercel y
+  cada consulta cruzaba EE.UU. ↔ Brasil.
+- `/[businessSlug]` y `/[businessSlug]/cancelar` usan ISR (`revalidate = 60` +
+  `generateStaticParams` vacío). La primera visita de cada slug genera y cachea;
+  las siguientes se sirven desde el CDN con `s-maxage=60` y
+  `stale-while-revalidate`, sin ejecutar la función.
+- La disponibilidad real se sigue consultando en vivo por server action: la
+  caché nunca devuelve horarios ocupados.
+- Las acciones del panel invalidan `/{slug}` al guardar servicios, sedes,
+  horarios, profesionales, configuración y página pública.
+- Manrope se carga con `next/font` (una fuente variable, precargada y con
+  `Manrope Fallback` ajustado) en lugar de cinco pesos de `@fontsource`. Eso
+  elimina el salto de layout cuando termina de cargar la tipografía.
+
+Medición local (build de producción, Supabase `sa-east-1`):
+
+| Petición | Tiempo |
+| --- | ---: |
+| Primera visita (MISS, conexión fría) | ~3,8 s |
+| Segunda visita (HIT) | ~44 ms |
+| Primera visita a `/cancelar` (MISS) | ~0,37 s |
+| Segunda visita a `/cancelar` (HIT) | ~26 ms |
+
+La primera visita incluye el handshake de la conexión a la base. En Vercel,
+con la función en `gru1`, ese tramo baja a decenas de milisegundos y sólo lo
+paga la primera visita de cada slug después de un deploy.
+
 ## Notas
 
 - El transaction pooler (6543) sigue siendo la opción segura para serverless
